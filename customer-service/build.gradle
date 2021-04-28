@@ -1,0 +1,23 @@
+plugins {
+  id 'com.google.cloud.tools.jib' version '1.7.0'
+}
+
+apply plugin: ServicePlugin
+
+dependencies {
+    compile project(":common-swagger")
+    compile project(":customer-service-api-web")
+
+    compile project(":customer-service-api-messaging")
+    compile project(":order-service-api-messaging")
+
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-publisher"
+
+    compile 'mysql:mysql-connector-java:5.1.36'
+
+    compile "org.springframework.boot:spring-boot-starter"
+    compile "org.springframework.boot:spring-boot-starter-actuator"
+    compile "org.springframework.boot:spring-boot-starter-webflux:$springBootVersion"
+}
+
+jib.to.image = "eventuate-tram-examples-customers-and-orders-customer-service:${version}"
