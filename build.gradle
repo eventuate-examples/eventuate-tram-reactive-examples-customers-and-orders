@@ -1,0 +1,83 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+        mavenLocal()
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath "com.avast.gradle:gradle-docker-compose-plugin:0.12.0"
+    }
+}
+
+apply plugin: 'docker-compose'
+
+subprojects {
+
+    apply plugin: "java"
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven {
+            url "https://dl.bintray.com/eventuateio-oss/eventuate-maven-release"
+        }
+        eventuateMavenRepoUrl.split(',').each { repoUrl -> maven { url repoUrl } }
+    }
+
+    dependencies {
+        implementation(platform("io.eventuate.platform:eventuate-platform-dependencies:$eventuatePlatformVersion"))
+        testCompile "junit:junit:4.12"
+    }
+
+}
+
+dockerCompose {
+    environment.put "EVENTUATE_COMMON_VERSION", eventuateCommonImageVersion
+    environment.put "EVENTUATE_CDC_VERSION", eventuateCdcImageVersion
+    environment.put "EVENTUATE_CDC_KAFKA_ENABLE_BATCH_PROCESSING", eventuateCdcKafkaEnableBatchProcessing
+    environment.put "EVENTUATE_JAVA_BASE_IMAGE_VERSION", eventuateExamplesBaseImageVersion
+    environment.put "EVENTUATE_PROXY_VERSION", eventuateProxyImageVersion
+
+    removeOrphans = true
+
+    mysqlbinlog {
+        projectName = null
+        useComposeFiles = ["docker-compose-mysql-binlog.yml"]
+        removeContainers = project.ext.removeContainers
+    }
+
+    mysqlbinloginfrastructure {
+        projectName = null
+        useComposeFiles = ["docker-compose-mysql-binlog.yml"]
+        startedServices = ["cdc-service", "zipkin"]
+        removeContainers = project.ext.removeContainers
+    }
+}
+
+subprojects.each {
+  if (it.name.endsWith("-service") || it.name.endsWith("-gateway")) {
+    mysqlbinlogComposeUp.dependsOn(":" + it.name + ":assemble")
+  }
+ }
+
+mysqlbinlogComposeUp.dependsOn(mysqlbinloginfrastructureComposeUp)
+
+task buildAndStartServicesMySql(type: GradleBuild) {
+    tasks = ["mysqlbinlogComposeUp"]
+}
+
+task endToEndTests(type: GradleBuild) {
+    tasks = [":end-to-end-tests:test"]
+}
+
+endToEndTests.dependsOn(mysqlbinlogComposeUp)
+endToEndTests.dependsOn(":end-to-end-tests:cleanTest")
+
+task stopServicesMySql(type: GradleBuild) {
+    tasks = ["mysqlbinlogComposeDown"]
+}

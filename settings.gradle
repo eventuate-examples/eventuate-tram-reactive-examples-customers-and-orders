@@ -1,0 +1,14 @@
+include 'common'
+include 'common-swagger'
+
+include 'customer-service-api-web'
+include 'customer-service-api-messaging'
+include 'customer-service'
+
+include 'order-service-api-web'
+include 'order-service-api-messaging'
+
+include 'order-history-service-api-web'
+
+include 'end-to-end-tests'
+
