@@ -4,7 +4,7 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public interface ReservedCreditRepository extends ReactiveCrudRepository<ReservedCredit, Long> {
-  Flux<ReservedCredit> findAllByCustomerId(Long customerId);
+public interface CreditReservationRepository extends ReactiveCrudRepository<CreditReservation, Long> {
+  Flux<CreditReservation> findAllByCustomerId(Long customerId);
   Mono<Void> deleteByOrderId(Long orderId);
 }

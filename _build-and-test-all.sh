@@ -25,7 +25,6 @@ else
 fi
 
 
-${dockerall}Build
 ${dockerall}Up
 
 #Testing mongo cli

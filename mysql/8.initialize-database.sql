@@ -8,7 +8,7 @@ CREATE TABLE customer (
   credit_limit DECIMAL
 );
 
-CREATE TABLE reserved_credit (
+CREATE TABLE credit_reservation (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   customer_id BIGINT,
   order_id BIGINT,
