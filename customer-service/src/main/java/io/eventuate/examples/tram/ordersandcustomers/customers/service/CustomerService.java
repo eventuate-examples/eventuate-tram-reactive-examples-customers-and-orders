@@ -3,8 +3,8 @@ package io.eventuate.examples.tram.ordersandcustomers.customers.service;
 import io.eventuate.examples.tram.ordersandcustomers.common.domain.Money;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.Customer;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CustomerRepository;
-import io.eventuate.examples.tram.ordersandcustomers.customers.domain.ReservedCredit;
-import io.eventuate.examples.tram.ordersandcustomers.customers.domain.ReservedCreditRepository;
+import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservation;
+import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservationRepository;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservationFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerValidationFailedEvent;
@@ -26,18 +26,18 @@ public class CustomerService {
 
   private CustomerRepository customerRepository;
 
-  private ReservedCreditRepository reservedCreditRepository;
+  private CreditReservationRepository creditReservationRepository;
 
   private ReactiveDomainEventPublisher domainEventPublisher;
 
   private TransactionalOperator transactionalOperator;
 
   public CustomerService(CustomerRepository customerRepository,
-                         ReservedCreditRepository reservedCreditRepository,
+                         CreditReservationRepository creditReservationRepository,
                          ReactiveDomainEventPublisher domainEventPublisher,
                          TransactionalOperator transactionalOperator) {
     this.customerRepository = customerRepository;
-    this.reservedCreditRepository = reservedCreditRepository;
+    this.creditReservationRepository = creditReservationRepository;
     this.domainEventPublisher = domainEventPublisher;
     this.transactionalOperator = transactionalOperator;
   }
@@ -47,7 +47,11 @@ public class CustomerService {
 
     return customerRepository
             .save(customerWithEvents.result)
-            .flatMap(customer -> domainEventPublisher.publish(Customer.class, customer.getId(), customerWithEvents.events).collectList().map(messages -> customer))
+            .flatMap(customer ->
+                    domainEventPublisher
+                            .publish(Customer.class, customer.getId(), customerWithEvents.events)
+                            .collectList()
+                            .thenReturn(customer))
             .as(transactionalOperator::transactional);
   }
 
@@ -56,10 +60,10 @@ public class CustomerService {
     Mono<Customer> possibleCustomer = customerRepository.findById(customerId);
 
     return possibleCustomer
-            .flatMap(customer -> reservedCreditRepository
+            .flatMap(customer -> creditReservationRepository
                     .findAllByCustomerId(customerId)
                     .collectList()
-                    .flatMap(reservedCredits -> handleCreditReservation(reservedCredits, customer, orderId, customerId, orderTotal)))
+                    .flatMap(creditReservations -> handleCreditReservation(creditReservations, customer, orderId, customerId, orderTotal)))
             .switchIfEmpty(handleNotExistingCustomer(orderId, customerId))
             .as(transactionalOperator::transactional)
             .doOnError(throwable -> logger.error("credit reservation failed", throwable))
@@ -67,25 +71,25 @@ public class CustomerService {
   }
 
   public Mono<Void> releaseCredit(long orderId, long customerId) {
-      return reservedCreditRepository
+      return creditReservationRepository
               .deleteByOrderId(orderId).as(transactionalOperator::transactional)
               .doOnError(throwable -> logger.error("credit releasing failed", throwable))
               .then();
   }
 
-  private Mono<List<Message>> handleCreditReservation(List<ReservedCredit> reservedCredits, Customer customer, long orderId, long customerId, Money orderTotal) {
+  private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, long orderId, long customerId, Money orderTotal) {
     BigDecimal currentReservations =
-            reservedCredits.stream().map(ReservedCredit::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
+            creditReservations.stream().map(CreditReservation::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
     if (currentReservations.add(orderTotal.getAmount()).compareTo(customer.getCreditLimit()) <= 0) {
       logger.info("reserving credit (orderId: {}, customerId: {})", orderId, customerId);
 
       CustomerCreditReservedEvent customerCreditReservedEvent =
               new CustomerCreditReservedEvent(orderId);
 
-      Mono<ReservedCredit> reservedCredit =
-              reservedCreditRepository.save(new ReservedCredit(customerId, orderId, orderTotal.getAmount()));
+      Mono<CreditReservation> creditReservation =
+              creditReservationRepository.save(new CreditReservation(customerId, orderId, orderTotal.getAmount()));
 
-      return reservedCredit.flatMap(rc ->
+      return creditReservation.flatMap(rc ->
               domainEventPublisher
                       .publish(Customer.class,
                               customer.getId(),
