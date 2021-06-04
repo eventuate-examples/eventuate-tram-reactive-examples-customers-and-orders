@@ -1,7 +1,6 @@
 package io.eventuate.examples.tram.ordersandcustomers.apigateway;
 
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCreatedEvent;
-import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderRejectedEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
@@ -22,15 +21,10 @@ public class OrderEventConsumer {
     return ReactiveDomainEventHandlersBuilder
             .forAggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order")
             .onEvent(OrderCreatedEvent.class, this::handleOrderCreatedEvent)
-            .onEvent(OrderRejectedEvent.class, this::handleOrderRejectedEvent)
             .build();
   }
 
   public Mono<Void> handleOrderCreatedEvent(DomainEventEnvelope<OrderCreatedEvent> domainEventEnvelope) {
-    return Mono.fromRunnable(() -> orderServiceProxyController.createOrderSagaComplete(domainEventEnvelope.getAggregateId()));
-  }
-
-  public Mono<Void> handleOrderRejectedEvent(DomainEventEnvelope<OrderRejectedEvent> domainEventEnvelope) {
     return Mono.fromRunnable(() -> orderServiceProxyController.createOrderSagaComplete(domainEventEnvelope.getAggregateId()));
   }
 }
