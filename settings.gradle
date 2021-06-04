@@ -9,7 +9,7 @@ include 'order-service'
 include 'order-service-api-web'
 include 'order-service-api-messaging'
 
-include 'order-history-service-api-web'
+include 'api-gateway-service'
 
 include 'end-to-end-tests'
 

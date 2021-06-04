@@ -7,6 +7,8 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderD
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderState;
 import io.eventuate.tram.events.publisher.ResultWithEvents;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
@@ -14,31 +16,36 @@ import java.math.BigDecimal;
 import static java.util.Collections.singletonList;
 
 @Table("ordert")
-public class Order {
+public class Order implements Persistable<String> {
 
   @Id
-  private Long id;
+  private String id;
 
   private String state;
   private Long customerId;
   private BigDecimal orderTotal;
 
+  @Transient
+  private boolean newOrder = false;
+
   public Order() {
   }
 
-  public Order(OrderDetails orderDetails) {
+  public Order(String id, OrderDetails orderDetails) {
+    this.id = id;
     this.customerId = orderDetails.getCustomerId();
     this.orderTotal = orderDetails.getOrderTotal().getAmount();
     this.state = OrderState.PENDING.name();
   }
 
-  public static ResultWithEvents<Order> createOrder(OrderDetails orderDetails) {
-    Order order = new Order(orderDetails);
+  public static ResultWithEvents<Order> createOrder(String id, OrderDetails orderDetails) {
+    Order order = new Order(id, orderDetails);
+    order.newOrder = true;
     OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(orderDetails);
     return new ResultWithEvents<>(order, singletonList(orderCreatedEvent));
   }
 
-  public Long getId() {
+  public String getId() {
     return id;
   }
 
@@ -56,6 +63,11 @@ public class Order {
 
   public OrderDetails getOrderDetails() {
     return new OrderDetails(customerId, new Money(orderTotal));
+  }
+
+  @Override
+  public boolean isNew() {
+    return newOrder;
   }
 
   public void cancel() {

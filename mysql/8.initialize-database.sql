@@ -11,12 +11,12 @@ CREATE TABLE customer (
 CREATE TABLE credit_reservation (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   customer_id BIGINT,
-  order_id BIGINT,
+  order_id VARCHAR(128),
   reservation DECIMAL
 );
 
 CREATE TABLE ordert (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(128) PRIMARY KEY,
   state VARCHAR(16),
   customer_id BIGINT,
   order_total DECIMAL

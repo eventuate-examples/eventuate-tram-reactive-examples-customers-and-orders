@@ -2,6 +2,7 @@ package io.eventuate.examples.tram.ordersandcustomers.orders;
 
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.OrderRepository;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.CustomerEventConsumer;
+import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderSagaEventConsumer;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderService;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventDispatcher;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventDispatcherFactory;
@@ -38,13 +39,24 @@ public class OrderConfiguration {
 
 
   @Bean
-  public CustomerEventConsumer orderEventConsumer() {
+  public CustomerEventConsumer customerEventConsumer() {
     return new CustomerEventConsumer();
   }
 
   @Bean
-  public ReactiveDomainEventDispatcher domainEventDispatcher(CustomerEventConsumer customerEventConsumer,
-                                                             ReactiveDomainEventDispatcherFactory domainEventDispatcherFactory) {
+  public OrderSagaEventConsumer orderSagaEventConsumer() {
+    return new OrderSagaEventConsumer();
+  }
+
+  @Bean
+  public ReactiveDomainEventDispatcher customerDomainEventDispatcher(CustomerEventConsumer customerEventConsumer,
+                                                                     ReactiveDomainEventDispatcherFactory domainEventDispatcherFactory) {
     return domainEventDispatcherFactory.make("customerServiceEvents", customerEventConsumer.domainEventHandlers());
+  }
+
+  @Bean
+  public ReactiveDomainEventDispatcher orderSagaDomainEventDispatcher(OrderSagaEventConsumer orderSagaEventConsumer,
+                                                                     ReactiveDomainEventDispatcherFactory domainEventDispatcherFactory) {
+    return domainEventDispatcherFactory.make("orderSagaServiceEvents", orderSagaEventConsumer.domainEventHandlers());
   }
 }

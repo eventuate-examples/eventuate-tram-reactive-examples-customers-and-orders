@@ -28,8 +28,8 @@ public class OrderService {
     this.transactionalOperator = transactionalOperator;
   }
 
-  public Mono<Order> createOrder(OrderDetails orderDetails) {
-    ResultWithEvents<Order> orderWithEvents = Order.createOrder(orderDetails);
+  public Mono<Order> createOrder(String orderId, OrderDetails orderDetails) {
+    ResultWithEvents<Order> orderWithEvents = Order.createOrder(orderId, orderDetails);
     Order order = orderWithEvents.result;
 
     return orderRepository
@@ -41,7 +41,7 @@ public class OrderService {
             .as(transactionalOperator::transactional);
   }
 
-  public Mono<Void> approveOrder(Long orderId) {
+  public Mono<Void> approveOrder(String orderId) {
     return orderRepository
             .findById(orderId)
             .map(order -> {
@@ -53,7 +53,7 @@ public class OrderService {
             .then();
   }
 
-  public Mono<Void> rejectOrder(Long orderId) {
+  public Mono<Void> rejectOrder(String orderId) {
     return orderRepository
             .findById(orderId)
             .map(order -> {
@@ -65,7 +65,7 @@ public class OrderService {
             .then();
   }
 
-  public Mono<Order> cancelOrder(Long orderId) {
+  public Mono<Order> cancelOrder(String orderId) {
     return orderRepository
             .findById(orderId)
             .map(order -> {

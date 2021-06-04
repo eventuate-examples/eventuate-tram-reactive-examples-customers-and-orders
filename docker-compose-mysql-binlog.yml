@@ -61,20 +61,25 @@ services:
       SPRING_R2DBC_USERNAME: mysqluser
       SPRING_R2DBC_PASSWORD: mysqluser
 
-  order-history-service:
-    image: eventuateexamples/eventuate-tram-examples-customers-and-orders-order-history-service:development-202104132017
+  api-gateway-service:
+    build:
+      context: ./api-gateway-service/
+      args:
+        baseImageVersion: ${EVENTUATE_JAVA_BASE_IMAGE_VERSION}
     ports:
       - "8083:8080"
-    depends_on:
-      - mongodb
-      - kafka
-      - zookeeper
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb/customers_and_orders
-      EVENTUATELOCAL_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_SLEUTH_ENABLED: "true"
       SPRING_SLEUTH_SAMPLER_PROBABILITY: 1
       SPRING_ZIPKIN_BASE_URL: http://zipkin:9411/
+      EVENTUATE_OUTBOX_ID: 1
+      EVENTUATE_REACTIVE_DB_DRIVER: mysql
+      EVENTUATE_REACTIVE_DB_HOST: mysql
+      EVENTUATE_REACTIVE_DB_PORT: 3306
+      EVENTUATE_REACTIVE_DB_USERNAME: mysqluser
+      EVENTUATE_REACTIVE_DB_PASSWORD: mysqlpw
+      EVENTUATE_REACTIVE_DB_DATABASE: eventuate
+      EVENTUATELOCAL_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
   zookeeper:
     image: eventuateio/eventuate-zookeeper:$EVENTUATE_COMMON_VERSION

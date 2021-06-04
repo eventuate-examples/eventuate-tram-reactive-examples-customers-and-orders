@@ -1,5 +1,6 @@
 package io.eventuate.examples.tram.ordersandcustomers.orders.web;
 
+import io.eventuate.examples.tram.ordersandcustomers.common.IdGenerator;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderDetails;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.OrderRepository;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderService;
@@ -30,12 +31,13 @@ public class OrderController {
   @RequestMapping(value = "/orders", method = RequestMethod.POST)
   public Mono<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest createOrderRequest) {
     return orderService
-            .createOrder(new OrderDetails(createOrderRequest.getCustomerId(), createOrderRequest.getOrderTotal()))
+            .createOrder(IdGenerator.generateId(),
+                    new OrderDetails(createOrderRequest.getCustomerId(), createOrderRequest.getOrderTotal()))
             .map(o -> new CreateOrderResponse(o.getId()));
   }
 
   @RequestMapping(value="/orders/{orderId}", method= RequestMethod.GET)
-  public Mono<ResponseEntity<GetOrderResponse>> getOrder(@PathVariable Long orderId) {
+  public Mono<ResponseEntity<GetOrderResponse>> getOrder(@PathVariable String orderId) {
      return orderRepository
             .findById(orderId)
             .map(this::makeSuccessfulResponse)
@@ -43,7 +45,7 @@ public class OrderController {
   }
 
   @RequestMapping(value="/orders/{orderId}/cancel", method= RequestMethod.POST)
-  public Mono<ResponseEntity<GetOrderResponse>> cancelOrder(@PathVariable Long orderId) {
+  public Mono<ResponseEntity<GetOrderResponse>> cancelOrder(@PathVariable String orderId) {
      return orderService
              .cancelOrder(orderId)
              .map(this::makeSuccessfulResponse)

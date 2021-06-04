@@ -6,5 +6,5 @@ import reactor.core.publisher.Mono;
 
 public interface CreditReservationRepository extends ReactiveCrudRepository<CreditReservation, Long> {
   Flux<CreditReservation> findAllByCustomerId(Long customerId);
-  Mono<Void> deleteByOrderId(Long orderId);
+  Mono<Void> deleteByOrderId(String orderId);
 }

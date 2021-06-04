@@ -1,7 +1,7 @@
-package io.eventuate.examples.tram.ordersandcustomers.customers.service;
+package io.eventuate.examples.tram.ordersandcustomers.apigateway;
 
-import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCancelledEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCreatedEvent;
+import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderRejectedEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
@@ -12,29 +12,25 @@ import reactor.core.publisher.Mono;
 public class OrderEventConsumer {
   private Logger logger = LoggerFactory.getLogger(getClass());
 
-  private CustomerService customerService;
+  private OrderServiceProxyController orderServiceProxyController;
 
-  public OrderEventConsumer(CustomerService customerService) {
-    this.customerService = customerService;
+  public OrderEventConsumer(OrderServiceProxyController orderServiceProxyController) {
+    this.orderServiceProxyController = orderServiceProxyController;
   }
 
   public ReactiveDomainEventHandlers domainEventHandlers() {
     return ReactiveDomainEventHandlersBuilder
             .forAggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order")
             .onEvent(OrderCreatedEvent.class, this::handleOrderCreatedEvent)
-            .onEvent(OrderCancelledEvent.class, this::handleOrderCancelledEvent)
+            .onEvent(OrderRejectedEvent.class, this::handleOrderRejectedEvent)
             .build();
   }
 
   public Mono<Void> handleOrderCreatedEvent(DomainEventEnvelope<OrderCreatedEvent> domainEventEnvelope) {
-    OrderCreatedEvent event = domainEventEnvelope.getEvent();
-    return customerService.reserveCredit(domainEventEnvelope.getAggregateId(),
-            event.getOrderDetails().getCustomerId(), event.getOrderDetails().getOrderTotal());
+    return Mono.fromRunnable(() -> orderServiceProxyController.createOrderSagaComplete(domainEventEnvelope.getAggregateId()));
   }
 
-  public Mono<Void> handleOrderCancelledEvent(DomainEventEnvelope<OrderCancelledEvent> domainEventEnvelope) {
-    return customerService.releaseCredit(domainEventEnvelope.getAggregateId(),
-            domainEventEnvelope.getEvent().getOrderDetails().getCustomerId());
+  public Mono<Void> handleOrderRejectedEvent(DomainEventEnvelope<OrderRejectedEvent> domainEventEnvelope) {
+    return Mono.fromRunnable(() -> orderServiceProxyController.createOrderSagaComplete(domainEventEnvelope.getAggregateId()));
   }
-
 }

@@ -55,7 +55,7 @@ public class CustomerService {
             .as(transactionalOperator::transactional);
   }
 
-  public Mono<Void> reserveCredit(long orderId, long customerId, Money orderTotal) {
+  public Mono<Void> reserveCredit(String orderId, long customerId, Money orderTotal) {
 
     Mono<Customer> possibleCustomer = customerRepository.findById(customerId);
 
@@ -70,14 +70,14 @@ public class CustomerService {
             .then();
   }
 
-  public Mono<Void> releaseCredit(long orderId, long customerId) {
+  public Mono<Void> releaseCredit(String orderId, long customerId) {
       return creditReservationRepository
               .deleteByOrderId(orderId).as(transactionalOperator::transactional)
               .doOnError(throwable -> logger.error("credit releasing failed", throwable))
               .then();
   }
 
-  private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, long orderId, long customerId, Money orderTotal) {
+  private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, String orderId, long customerId, Money orderTotal) {
     BigDecimal currentReservations =
             creditReservations.stream().map(CreditReservation::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
     if (currentReservations.add(orderTotal.getAmount()).compareTo(customer.getCreditLimit()) <= 0) {
@@ -108,7 +108,7 @@ public class CustomerService {
     }
   }
 
-  private Mono<List<Message>> handleNotExistingCustomer(long orderId, long customerId) {
+  private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId) {
     return Mono.defer(() ->
       domainEventPublisher
               .publish(Customer.class,
