@@ -1,5 +1,6 @@
 package io.eventuate.examples.tram.ordersandcustomers.endtoendtests;
 
+import io.eventuate.common.json.mapper.JSonMapper;
 import io.eventuate.examples.tram.ordersandcustomers.common.domain.Money;
 import io.eventuate.examples.tram.ordersandcustomers.customers.webapi.CreateCustomerRequest;
 import io.eventuate.examples.tram.ordersandcustomers.customers.webapi.CreateCustomerResponse;
@@ -8,6 +9,7 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderRe
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.GetOrderResponse;
 import io.eventuate.util.test.async.Eventually;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
@@ -51,38 +54,34 @@ public class CustomersAndOrdersEndToEndTest {
     return "http://"+hostName+":8082/" + path;
   }
 
-  private String baseUrlOrderHistory(String path) {
-    return "http://"+hostName+":8083/" + path;
-  }
-
   @Autowired
   RestTemplate restTemplate;
 
   @Test
   public void shouldApprove() {
     Long customerId = createCustomer("Fred", new Money("15.00"));
-    String orderId = createOrderUsingProxy(customerId, new Money("12.34"));
+    String orderId = createOrder(customerId, new Money("12.34"), HttpStatus.OK);
     assertOrderState(orderId, OrderState.APPROVED);
   }
 
   @Test
   public void shouldReject() {
     Long customerId = createCustomer("Fred", new Money("15.00"));
-    String orderId = createOrderUsingProxy(customerId, new Money("123.34"));
+    String orderId = createOrder(customerId, new Money("123.34"), HttpStatus.BAD_REQUEST);
     assertOrderState(orderId, OrderState.REJECTED);
   }
 
   @Test
   public void shouldRejectForNonExistentCustomerId() {
     Long customerId = System.nanoTime();
-    String orderId = createOrderUsingProxy(customerId, new Money("123.34"));
+    String orderId = createOrder(customerId, new Money("123.34"), HttpStatus.BAD_REQUEST);
     assertOrderState(orderId, OrderState.REJECTED);
   }
 
   @Test
   public void shouldCancel() {
     Long customerId = createCustomer("Fred", new Money("15.00"));
-    String orderId = createOrderUsingProxy(customerId, new Money("12.34"));
+    String orderId = createOrder(customerId, new Money("12.34"), HttpStatus.OK);
     assertOrderState(orderId, OrderState.APPROVED);
     cancelOrder(orderId);
     assertOrderState(orderId, OrderState.CANCELLED);
@@ -93,14 +92,18 @@ public class CustomersAndOrdersEndToEndTest {
             new CreateCustomerRequest(name, credit), CreateCustomerResponse.class).getCustomerId();
   }
 
-  private String createOrder(Long customerId, Money orderTotal) {
-    return restTemplate.postForObject(baseUrlOrders("orders"),
-            new CreateOrderRequest(customerId, orderTotal), CreateOrderResponse.class).getOrderId();
-  }
+  private String createOrder(Long customerId, Money orderTotal, HttpStatus expectedStatus) {
+    try {
+      ResponseEntity<CreateOrderResponse> createOrderResponse = restTemplate.postForEntity(baseUrlOrdersProxy("orders"),
+              new CreateOrderRequest(customerId, orderTotal), CreateOrderResponse.class);
 
-  private String createOrderUsingProxy(Long customerId, Money orderTotal) {
-    return restTemplate.postForObject(baseUrlOrdersProxy("orders"),
-            new CreateOrderRequest(customerId, orderTotal), CreateOrderResponse.class).getOrderId();
+      Assert.assertEquals(expectedStatus, createOrderResponse.getStatusCode());
+
+      return createOrderResponse.getBody().getOrderId();
+    } catch (HttpStatusCodeException e) {
+      Assert.assertEquals(expectedStatus, e.getStatusCode());
+      return JSonMapper.fromJson(e.getResponseBodyAsString(), CreateOrderResponse.class).getOrderId();
+    }
   }
 
   private void cancelOrder(String orderId) {

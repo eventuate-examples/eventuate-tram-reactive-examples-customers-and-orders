@@ -7,6 +7,7 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderRe
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,46 +16,41 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 public class OrderServiceProxyController {
   private ReactiveDomainEventPublisher domainEventPublisher;
   private TransactionalOperator transactionalOperator;
-
+  private OrderEventConsumer orderEventConsumer;
 
   @Autowired
-  public OrderServiceProxyController(ReactiveDomainEventPublisher domainEventPublisher, TransactionalOperator transactionalOperator) {
+  public OrderServiceProxyController(ReactiveDomainEventPublisher domainEventPublisher,
+                                     TransactionalOperator transactionalOperator,
+                                     OrderEventConsumer orderEventConsumer) {
     this.domainEventPublisher = domainEventPublisher;
     this.transactionalOperator = transactionalOperator;
+    this.orderEventConsumer = orderEventConsumer;
   }
 
-  private ConcurrentHashMap<String, CompletableFuture<CreateOrderResponse>> sagaIdToCompletableFuture = new ConcurrentHashMap<>();
 
   @RequestMapping(value = "/orders", method = RequestMethod.POST)
-  public Mono<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest createOrderRequest) {
-    String orderAndSagaId = IdGenerator.generateId();
+  public Mono<ResponseEntity<CreateOrderResponse>> createOrder(@RequestBody CreateOrderRequest createOrderRequest) {
+    return Mono
+            .just(IdGenerator.generateId())
+            .flatMap(orderAndSagaId -> {
+              orderEventConsumer.prepareCreateOrderResponse(orderAndSagaId);
 
-    CreateOrderSagaStartedEvent createOrderSagaStartedEvent =
-            new CreateOrderSagaStartedEvent(new OrderDetails(createOrderRequest.getCustomerId(), createOrderRequest.getOrderTotal()));
+              CreateOrderSagaStartedEvent createOrderSagaStartedEvent =
+                      new CreateOrderSagaStartedEvent(new OrderDetails(createOrderRequest.getCustomerId(), createOrderRequest.getOrderTotal()));
 
-    CompletableFuture<CreateOrderResponse> response = new CompletableFuture<>();
-
-    sagaIdToCompletableFuture.put(orderAndSagaId, response);
-
-    return domainEventPublisher
-            .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order", orderAndSagaId, Collections.singletonList(createOrderSagaStartedEvent))
-            .as(transactionalOperator::transactional)
-            .then(Mono.fromFuture(response));
+              return domainEventPublisher
+                      .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
+                              orderAndSagaId, Collections.singletonList(createOrderSagaStartedEvent))
+                      .collectList()
+                      .map(messages -> orderAndSagaId)
+                      .as(transactionalOperator::transactional);
+            })
+            .flatMap(orderAndSagaId -> Mono.fromFuture(orderEventConsumer.getCreateOrderResponse(orderAndSagaId)));
   }
 
-  public void createOrderSagaComplete(String orderId) {
-    Optional
-            .ofNullable(sagaIdToCompletableFuture.remove(orderId))
-            .ifPresent(createOrderResponseCompletableFuture -> {
-              createOrderResponseCompletableFuture.complete(new CreateOrderResponse(orderId));
-            });
-  }
 }

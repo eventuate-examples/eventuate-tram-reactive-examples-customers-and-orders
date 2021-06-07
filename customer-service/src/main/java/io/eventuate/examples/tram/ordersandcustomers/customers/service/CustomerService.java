@@ -8,9 +8,13 @@ import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditRese
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservationFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerValidationFailedEvent;
+import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepFailedEvent;
+import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepSucceededEvent;
+import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderDetails;
 import io.eventuate.tram.events.publisher.ResultWithEvents;
 import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
+import org.aspectj.weaver.ast.Or;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -94,7 +98,16 @@ public class CustomerService {
                       .publish(Customer.class,
                               customer.getId(),
                               Collections.singletonList(customerCreditReservedEvent))
-                      .collectList());
+                      .collectList())
+              .flatMap(notUsed -> {
+                CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
+                        new CreateOrderSagaStepSucceededEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+
+                return domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
+                        orderId,
+                        Collections.singletonList(createOrderSagaStepSucceededEvent))
+                        .collectList();
+              });
     } else {
       logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
 
@@ -104,7 +117,16 @@ public class CustomerService {
       return domainEventPublisher.publish(Customer.class,
               customer.getId(),
               Collections.singletonList(customerCreditReservationFailedEvent))
-              .collectList();
+              .collectList()
+              .flatMap(notUsed -> {
+                CreateOrderSagaStepFailedEvent createOrderSagaStepFailedEvent =
+                        new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+
+                return domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
+                        orderId,
+                        Collections.singletonList(createOrderSagaStepFailedEvent))
+                        .collectList();
+              });
     }
   }
 

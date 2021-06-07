@@ -26,8 +26,8 @@ import org.springframework.context.annotation.Import;
 public class OrderConfiguration {
 
   @Bean
-  public OrderEventConsumer orderEventConsumer(OrderServiceProxyController orderServiceProxyController) {
-    return new OrderEventConsumer(orderServiceProxyController);
+  public OrderEventConsumer orderEventConsumer() {
+    return new OrderEventConsumer();
   }
 
   @Bean

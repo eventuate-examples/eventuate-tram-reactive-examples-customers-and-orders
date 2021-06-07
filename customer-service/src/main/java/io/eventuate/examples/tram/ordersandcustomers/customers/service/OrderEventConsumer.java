@@ -1,7 +1,7 @@
 package io.eventuate.examples.tram.ordersandcustomers.customers.service;
 
+import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStartedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCancelledEvent;
-import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCreatedEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
@@ -21,13 +21,13 @@ public class OrderEventConsumer {
   public ReactiveDomainEventHandlers domainEventHandlers() {
     return ReactiveDomainEventHandlersBuilder
             .forAggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order")
-            .onEvent(OrderCreatedEvent.class, this::handleOrderCreatedEvent)
+            .onEvent(CreateOrderSagaStartedEvent.class, this::handleCreateOrderSagaStartedEvent)
             .onEvent(OrderCancelledEvent.class, this::handleOrderCancelledEvent)
             .build();
   }
 
-  public Mono<Void> handleOrderCreatedEvent(DomainEventEnvelope<OrderCreatedEvent> domainEventEnvelope) {
-    OrderCreatedEvent event = domainEventEnvelope.getEvent();
+  public Mono<Void> handleCreateOrderSagaStartedEvent(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
+    CreateOrderSagaStartedEvent event = domainEventEnvelope.getEvent();
     return customerService.reserveCredit(domainEventEnvelope.getAggregateId(),
             event.getOrderDetails().getCustomerId(), event.getOrderDetails().getOrderTotal());
   }
