@@ -80,6 +80,8 @@ services:
       EVENTUATE_REACTIVE_DB_PASSWORD: mysqlpw
       EVENTUATE_REACTIVE_DB_DATABASE: eventuate
       EVENTUATELOCAL_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      GATEWAY_DESTINATIONS_ORDERSERVICEURL: http://order-service:8080
+      GATEWAY_DESTINATIONS_CUSTOMERSERVICEURL: http://customer-service:8080
 
   zookeeper:
     image: eventuateio/eventuate-zookeeper:$EVENTUATE_COMMON_VERSION

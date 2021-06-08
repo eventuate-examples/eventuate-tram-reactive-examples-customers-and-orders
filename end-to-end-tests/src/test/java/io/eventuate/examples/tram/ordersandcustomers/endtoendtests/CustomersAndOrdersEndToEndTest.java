@@ -33,26 +33,15 @@ public class CustomersAndOrdersEndToEndTest {
   @Value("${host.name}")
   private String hostName;
 
-  private String baseUrlOrdersProxy(String... path) {
-    return baseUrlOrders(8083, path);
-  }
-
-  private String baseUrlOrders(String... path) {
-    return baseUrlOrders(8081, path);
-  }
-
-  private String baseUrlOrders(int port, String... path) {
+  private String baseUrl(String... path) {
     StringBuilder sb = new StringBuilder();
-    sb.append("http://").append(hostName).append(":" + port);
+    sb.append("http://").append(hostName).append(":8083");
     Arrays.stream(path).forEach(p -> {
       sb.append('/').append(p);
     });
     return sb.toString();
   }
 
-  private String baseUrlCustomers(String path) {
-    return "http://"+hostName+":8082/" + path;
-  }
 
   @Autowired
   RestTemplate restTemplate;
@@ -88,13 +77,13 @@ public class CustomersAndOrdersEndToEndTest {
   }
 
   private Long createCustomer(String name, Money credit) {
-    return restTemplate.postForObject(baseUrlCustomers("customers"),
+    return restTemplate.postForObject(baseUrl("customers"),
             new CreateCustomerRequest(name, credit), CreateCustomerResponse.class).getCustomerId();
   }
 
   private String createOrder(Long customerId, Money orderTotal, HttpStatus expectedStatus) {
     try {
-      ResponseEntity<CreateOrderResponse> createOrderResponse = restTemplate.postForEntity(baseUrlOrdersProxy("orders"),
+      ResponseEntity<CreateOrderResponse> createOrderResponse = restTemplate.postForEntity(baseUrl("orders"),
               new CreateOrderRequest(customerId, orderTotal), CreateOrderResponse.class);
 
       Assert.assertEquals(expectedStatus, createOrderResponse.getStatusCode());
@@ -107,14 +96,14 @@ public class CustomersAndOrdersEndToEndTest {
   }
 
   private void cancelOrder(String orderId) {
-    restTemplate.postForObject(baseUrlOrders("orders", orderId, "cancel"),
+    restTemplate.postForObject(baseUrl("orders", orderId, "cancel"),
             null, GetOrderResponse.class);
   }
 
   private void assertOrderState(String id, OrderState expectedState) {
     Eventually.eventually(120, 250, TimeUnit.MILLISECONDS, () -> {
       ResponseEntity<GetOrderResponse> response =
-              restTemplate.getForEntity(baseUrlOrders("orders/" + id), GetOrderResponse.class);
+              restTemplate.getForEntity(baseUrl("orders/" + id), GetOrderResponse.class);
 
       assertEquals(HttpStatus.OK, response.getStatusCode());
 

@@ -1,13 +1,9 @@
 package io.eventuate.examples.tram.ordersandcustomers.orders.web;
 
-import io.eventuate.examples.tram.ordersandcustomers.common.IdGenerator;
-import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderDetails;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.OrderRepository;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderService;
-import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.GetOrderResponse;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order;
-import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,14 +22,6 @@ public class OrderController {
 
     this.orderService = orderService;
     this.orderRepository = orderRepository;
-  }
-
-  @RequestMapping(value = "/orders", method = RequestMethod.POST)
-  public Mono<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest createOrderRequest) {
-    return orderService
-            .createOrder(IdGenerator.generateId(),
-                    new OrderDetails(createOrderRequest.getCustomerId(), createOrderRequest.getOrderTotal()))
-            .map(o -> new CreateOrderResponse(o.getId()));
   }
 
   @RequestMapping(value="/orders/{orderId}", method= RequestMethod.GET)

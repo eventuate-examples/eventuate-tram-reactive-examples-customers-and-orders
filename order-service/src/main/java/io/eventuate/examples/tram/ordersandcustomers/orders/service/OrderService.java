@@ -9,16 +9,18 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderD
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderRejectedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.OrderRepository;
+import io.eventuate.tram.events.common.DomainEvent;
 import io.eventuate.tram.events.publisher.ResultWithEvents;
+import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
+import java.util.List;
 
 import static java.util.Collections.singletonList;
 
-//TODO: remove duplicated code
 public class OrderService {
 
   private final ReactiveDomainEventPublisher domainEventPublisher;
@@ -39,19 +41,10 @@ public class OrderService {
 
     return orderRepository
             .save(order)
-            .flatMap(o -> domainEventPublisher
-                    .publish(Order.class, order.getId(), orderWithEvents.events)
-                    .collectList()
+            .flatMap(o -> publishOrderEvents(order.getId(),
+                    orderWithEvents.events,
+                    Collections.singletonList(new CreateOrderSagaStepSucceededEvent("Order Service", orderDetails)))
                     .thenReturn(o))
-            .flatMap(o -> {
-              CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
-                      new CreateOrderSagaStepSucceededEvent("Order Service", orderDetails);
-
-              return domainEventPublisher.publish(Order.class,
-                      orderId,
-                      Collections.singletonList(createOrderSagaStepSucceededEvent))
-                      .collectList().flatMap(notUsed -> Mono.just(o));
-            })
             .as(transactionalOperator::transactional);
   }
 
@@ -63,17 +56,9 @@ public class OrderService {
               return order;
             })
             .flatMap(orderRepository::save)
-            .flatMap(o ->
-                    domainEventPublisher
-                            .publish(Order.class, orderId, singletonList(new OrderApprovedEvent(o.getOrderDetails())))
-                            .collectList()
-                            .flatMap(notUsed ->
-                              domainEventPublisher.publish(Order.class,
-                                      orderId,
-                                      Collections.singletonList(new CreateOrderSagaCompletedEvent("Order Service", o.getOrderDetails())))
-                                      .collectList()
-                            )
-            )
+            .flatMap(order -> publishOrderEvents(order.getId(),
+                    new OrderApprovedEvent(order.getOrderDetails()),
+                    new CreateOrderSagaCompletedEvent("Order Service", order.getOrderDetails())))
             .then();
   }
 
@@ -85,17 +70,9 @@ public class OrderService {
               return order;
             })
             .flatMap(orderRepository::save)
-            .flatMap(o ->
-                    domainEventPublisher
-                            .publish(Order.class, orderId, singletonList(new OrderRejectedEvent(o.getOrderDetails())))
-                            .collectList()
-                            .flatMap(notUsed ->
-                                    domainEventPublisher.publish(Order.class,
-                                            orderId,
-                                            Collections.singletonList(new CreateOrderSagaStepFailedEvent("Order Service", o.getOrderDetails())))
-                                            .collectList()
-                            )
-            )
+            .flatMap(order -> publishOrderEvents(order.getId(),
+                    new OrderRejectedEvent(order.getOrderDetails()),
+                    new CreateOrderSagaStepFailedEvent("Order Service", order.getOrderDetails())))
             .then();
   }
 
@@ -107,7 +84,21 @@ public class OrderService {
               return order;
             })
             .flatMap(orderRepository::save)
-            .flatMap(o -> domainEventPublisher.publish(Order.class, orderId, singletonList(new OrderCancelledEvent(o.getOrderDetails()))).collectList().thenReturn(o))
+            .flatMap(order -> domainEventPublisher.publish(Order.class, orderId, singletonList(new OrderCancelledEvent(order.getOrderDetails())))
+                    .collectList()
+                    .thenReturn(order))
             .as(transactionalOperator::transactional);
+  }
+
+  private Mono<List<Message>> publishOrderEvents(String orderId, DomainEvent orderEvent, DomainEvent orderSagaEvent) {
+    return publishOrderEvents(orderId, Collections.singletonList(orderEvent), Collections.singletonList(orderSagaEvent));
+  }
+
+  private Mono<List<Message>> publishOrderEvents(String orderId, List<DomainEvent> orderEvents, List<DomainEvent> orderSagaEvents) {
+    return domainEventPublisher
+            .publish(Order.class, orderId, orderEvents)
+            .collectList()
+            .flatMap(notUsed ->
+                    domainEventPublisher.publish(Order.class, orderId, orderSagaEvents).collectList());
   }
 }

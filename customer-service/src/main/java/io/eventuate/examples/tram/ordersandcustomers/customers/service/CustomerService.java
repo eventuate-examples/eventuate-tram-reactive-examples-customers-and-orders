@@ -11,6 +11,7 @@ import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.Cus
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepSucceededEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderDetails;
+import io.eventuate.tram.events.common.DomainEvent;
 import io.eventuate.tram.events.publisher.ResultWithEvents;
 import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
@@ -84,50 +85,42 @@ public class CustomerService {
   private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, String orderId, long customerId, Money orderTotal) {
     BigDecimal currentReservations =
             creditReservations.stream().map(CreditReservation::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
+
     if (currentReservations.add(orderTotal.getAmount()).compareTo(customer.getCreditLimit()) <= 0) {
       logger.info("reserving credit (orderId: {}, customerId: {})", orderId, customerId);
 
       CustomerCreditReservedEvent customerCreditReservedEvent =
               new CustomerCreditReservedEvent(orderId);
 
-      Mono<CreditReservation> creditReservation =
-              creditReservationRepository.save(new CreditReservation(customerId, orderId, orderTotal.getAmount()));
+      CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
+              new CreateOrderSagaStepSucceededEvent("Customer Service", new OrderDetails(customerId, orderTotal));
 
-      return creditReservation.flatMap(rc ->
-              domainEventPublisher
-                      .publish(Customer.class,
-                              customer.getId(),
-                              Collections.singletonList(customerCreditReservedEvent))
-                      .collectList())
-              .flatMap(notUsed -> {
-                CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
-                        new CreateOrderSagaStepSucceededEvent("Customer Service", new OrderDetails(customerId, orderTotal));
-
-                return domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
-                        orderId,
-                        Collections.singletonList(createOrderSagaStepSucceededEvent))
-                        .collectList();
-              });
+      return creditReservationRepository
+              .save(new CreditReservation(customerId, orderId, orderTotal.getAmount()))
+              .flatMap(notUsed -> publishCreditReservationEvents(customerId, customerCreditReservedEvent, orderId, createOrderSagaStepSucceededEvent));
     } else {
       logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
 
       CustomerCreditReservationFailedEvent customerCreditReservationFailedEvent =
               new CustomerCreditReservationFailedEvent(orderId);
 
-      return domainEventPublisher.publish(Customer.class,
-              customer.getId(),
-              Collections.singletonList(customerCreditReservationFailedEvent))
-              .collectList()
-              .flatMap(notUsed -> {
-                CreateOrderSagaStepFailedEvent createOrderSagaStepFailedEvent =
+      CreateOrderSagaStepFailedEvent createOrderSagaStepFailedEvent =
                         new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
 
-                return domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
-                        orderId,
-                        Collections.singletonList(createOrderSagaStepFailedEvent))
-                        .collectList();
-              });
+      return publishCreditReservationEvents(customerId, customerCreditReservationFailedEvent, orderId, createOrderSagaStepFailedEvent);
     }
+  }
+
+  private Mono<List<Message>> publishCreditReservationEvents(Long customerId, DomainEvent customerEvent, String orderId, DomainEvent orderSagaEvent) {
+    return domainEventPublisher.publish(Customer.class,
+            customerId,
+            Collections.singletonList(customerEvent))
+            .collectList()
+            .flatMap(notUsed ->
+              domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
+                      orderId,
+                      Collections.singletonList(orderSagaEvent))
+                      .collectList());
   }
 
   private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId) {

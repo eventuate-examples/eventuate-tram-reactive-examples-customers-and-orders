@@ -2,14 +2,11 @@ package io.eventuate.examples.tram.ordersandcustomers.apigateway;
 
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaCompletedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepFailedEvent;
-import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import reactor.core.publisher.Mono;
 
 import java.util.Optional;
@@ -19,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OrderEventConsumer {
   private Logger logger = LoggerFactory.getLogger(getClass());
 
-  private ConcurrentHashMap<String, CompletableFuture<ResponseEntity<CreateOrderResponse>>> sagaIdToCompletableFuture = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<String, CompletableFuture<OrderState>> sagaIdToCompletableFuture = new ConcurrentHashMap<>();
 
   public ReactiveDomainEventHandlers domainEventHandlers() {
     return ReactiveDomainEventHandlersBuilder
@@ -37,7 +34,7 @@ public class OrderEventConsumer {
     return Mono.fromRunnable(() -> failOrderCreation(domainEventEnvelope.getAggregateId()));
   }
 
-  public CompletableFuture<ResponseEntity<CreateOrderResponse>> getCreateOrderResponse(String createOrderSagaId) {
+  public CompletableFuture<OrderState> getCreateOrderResponse(String createOrderSagaId) {
     return sagaIdToCompletableFuture.get(createOrderSagaId);
   }
 
@@ -47,16 +44,17 @@ public class OrderEventConsumer {
 
 
   private void completeOrderCreation(String orderId) {
-    Optional
-            .ofNullable(sagaIdToCompletableFuture.remove(orderId))
-            .ifPresent(createOrderResponseCompletableFuture ->
-              createOrderResponseCompletableFuture.complete(new ResponseEntity<>(new CreateOrderResponse(orderId), HttpStatus.OK)));
+    handlerOrderCreation(orderId, OrderState.COMPLETE);
   }
 
   private void failOrderCreation(String orderId) {
+    handlerOrderCreation(orderId, OrderState.FAILED);
+  }
+
+  private void handlerOrderCreation(String orderId, OrderState orderState) {
     Optional
             .ofNullable(sagaIdToCompletableFuture.remove(orderId))
-            .ifPresent(createOrderResponseCompletableFuture ->
-                    createOrderResponseCompletableFuture.complete(new ResponseEntity<>(new CreateOrderResponse(orderId), HttpStatus.BAD_REQUEST)));
+            .ifPresent(createOrderResponse ->
+                    createOrderResponse.complete(orderState));
   }
 }
