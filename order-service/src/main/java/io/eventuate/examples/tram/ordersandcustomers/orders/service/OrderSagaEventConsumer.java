@@ -28,7 +28,7 @@ public class OrderSagaEventConsumer {
   private Mono<Void> handlerOrderCreatedSagaStarted(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
     return orderService
             .createOrder(domainEventEnvelope.getAggregateId(), domainEventEnvelope.getEvent().getOrderDetails())
-            .then();
+            .flatMap(notUsed -> Mono.empty());
   }
 
   private Mono<Void> handleCreateOrderSagaStepSucceededEvent(DomainEventEnvelope<CreateOrderSagaStepSucceededEvent> domainEventEnvelope) {

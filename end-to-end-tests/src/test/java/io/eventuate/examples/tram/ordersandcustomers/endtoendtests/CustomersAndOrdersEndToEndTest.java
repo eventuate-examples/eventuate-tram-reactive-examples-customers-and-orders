@@ -21,6 +21,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -45,6 +47,17 @@ public class CustomersAndOrdersEndToEndTest {
 
   @Autowired
   RestTemplate restTemplate;
+
+  @Test
+  public void shouldSupportTimeout() throws IOException, InterruptedException {
+    try {
+      executeScript("stop-order-service.sh");
+      Long customerId = createCustomer("Fred", new Money("15.00"));
+      createOrder(customerId, new Money("12.34"), HttpStatus.GATEWAY_TIMEOUT);
+    } finally {
+      executeScript("start-order-service.sh");
+    }
+  }
 
   @Test
   public void shouldApprove() {
@@ -74,6 +87,14 @@ public class CustomersAndOrdersEndToEndTest {
     assertOrderState(orderId, OrderState.APPROVED);
     cancelOrder(orderId);
     assertOrderState(orderId, OrderState.CANCELLED);
+  }
+
+  private void executeScript(String script) throws IOException, InterruptedException {
+    ProcessBuilder processBuilder = new ProcessBuilder();
+    processBuilder.directory(new File(".."));
+    processBuilder.command("sh", script);
+    processBuilder.inheritIO();
+    processBuilder.start().waitFor();
   }
 
   private Long createCustomer(String name, Money credit) {

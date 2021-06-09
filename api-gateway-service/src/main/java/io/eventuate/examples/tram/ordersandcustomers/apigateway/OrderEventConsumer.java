@@ -9,14 +9,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 public class OrderEventConsumer {
   private Logger logger = LoggerFactory.getLogger(getClass());
 
   private ConcurrentHashMap<String, CompletableFuture<OrderState>> sagaIdToCompletableFuture = new ConcurrentHashMap<>();
+
+  private int timeoutInSeconds;
+
+  public OrderEventConsumer(int timeoutInSeconds) {
+    this.timeoutInSeconds = timeoutInSeconds;
+  }
 
   public ReactiveDomainEventHandlers domainEventHandlers() {
     return ReactiveDomainEventHandlersBuilder
@@ -34,14 +42,16 @@ public class OrderEventConsumer {
     return Mono.fromRunnable(() -> failOrderCreation(domainEventEnvelope.getAggregateId()));
   }
 
-  public CompletableFuture<OrderState> getCreateOrderResponse(String createOrderSagaId) {
-    return sagaIdToCompletableFuture.get(createOrderSagaId);
-  }
+  public Mono<OrderState> prepareCreateOrderResponse(String createOrderSagaId) {
+    CompletableFuture<OrderState> future = new CompletableFuture<>();
 
-  public void prepareCreateOrderResponse(String createOrderSagaId) {
-    sagaIdToCompletableFuture.put(createOrderSagaId, new CompletableFuture<>());
-  }
+    sagaIdToCompletableFuture.put(createOrderSagaId, future);
 
+    return Mono
+            .fromFuture(future)
+            .timeout(Duration.ofSeconds(timeoutInSeconds))
+            .onErrorReturn(throwable -> throwable instanceof TimeoutException, OrderState.TIMEOUT);
+  }
 
   private void completeOrderCreation(String orderId) {
     handlerOrderCreation(orderId, OrderState.COMPLETE);

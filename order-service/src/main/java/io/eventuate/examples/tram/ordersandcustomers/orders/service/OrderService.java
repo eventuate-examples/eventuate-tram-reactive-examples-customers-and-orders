@@ -44,7 +44,7 @@ public class OrderService {
             .flatMap(o -> publishOrderEvents(order.getId(),
                     orderWithEvents.events,
                     Collections.singletonList(new CreateOrderSagaStepSucceededEvent("Order Service", orderDetails)))
-                    .thenReturn(o))
+                    .map(notUsed -> o))
             .as(transactionalOperator::transactional);
   }
 
@@ -59,7 +59,7 @@ public class OrderService {
             .flatMap(order -> publishOrderEvents(order.getId(),
                     new OrderApprovedEvent(order.getOrderDetails()),
                     new CreateOrderSagaCompletedEvent("Order Service", order.getOrderDetails())))
-            .then();
+            .flatMap(notUsed -> Mono.empty());
   }
 
   public Mono<Void> rejectOrder(String orderId) {
@@ -73,7 +73,7 @@ public class OrderService {
             .flatMap(order -> publishOrderEvents(order.getId(),
                     new OrderRejectedEvent(order.getOrderDetails()),
                     new CreateOrderSagaStepFailedEvent("Order Service", order.getOrderDetails())))
-            .then();
+            .flatMap(notUsed -> Mono.empty());
   }
 
   public Mono<Order> cancelOrder(String orderId) {
@@ -86,7 +86,7 @@ public class OrderService {
             .flatMap(orderRepository::save)
             .flatMap(order -> domainEventPublisher.publish(Order.class, orderId, singletonList(new OrderCancelledEvent(order.getOrderDetails())))
                     .collectList()
-                    .thenReturn(order))
+                    .map(notUsed -> order))
             .as(transactionalOperator::transactional);
   }
 

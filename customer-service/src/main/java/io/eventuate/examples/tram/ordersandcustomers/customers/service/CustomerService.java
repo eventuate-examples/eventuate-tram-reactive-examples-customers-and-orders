@@ -15,7 +15,6 @@ import io.eventuate.tram.events.common.DomainEvent;
 import io.eventuate.tram.events.publisher.ResultWithEvents;
 import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
-import org.aspectj.weaver.ast.Or;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -56,7 +55,7 @@ public class CustomerService {
                     domainEventPublisher
                             .publish(Customer.class, customer.getId(), customerWithEvents.events)
                             .collectList()
-                            .thenReturn(customer))
+                            .map(notUsed -> customer))
             .as(transactionalOperator::transactional);
   }
 
@@ -72,14 +71,13 @@ public class CustomerService {
             .switchIfEmpty(handleNotExistingCustomer(orderId, customerId))
             .as(transactionalOperator::transactional)
             .doOnError(throwable -> logger.error("credit reservation failed", throwable))
-            .then();
+            .flatMap(notUsed -> Mono.empty());
   }
 
   public Mono<Void> releaseCredit(String orderId, long customerId) {
       return creditReservationRepository
               .deleteByOrderId(orderId).as(transactionalOperator::transactional)
-              .doOnError(throwable -> logger.error("credit releasing failed", throwable))
-              .then();
+              .doOnError(throwable -> logger.error("credit releasing failed", throwable));
   }
 
   private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, String orderId, long customerId, Money orderTotal) {

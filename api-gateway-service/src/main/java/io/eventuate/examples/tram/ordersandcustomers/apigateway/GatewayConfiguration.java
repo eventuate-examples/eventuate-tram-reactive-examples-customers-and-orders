@@ -9,6 +9,7 @@ import io.eventuate.tram.spring.messaging.producer.jdbc.reactive.ReactiveTramMes
 import io.eventuate.tram.spring.reactive.consumer.common.ReactiveTramConsumerCommonConfiguration;
 import io.eventuate.tram.spring.reactive.consumer.kafka.EventuateTramReactiveKafkaMessageConsumerConfiguration;
 import io.eventuate.tram.spring.reactive.events.subscriber.ReactiveTramEventSubscriberConfiguration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -58,8 +59,8 @@ public class GatewayConfiguration {
   }
 
   @Bean
-  public OrderEventConsumer orderEventConsumer() {
-    return new OrderEventConsumer();
+  public OrderEventConsumer orderEventConsumer(@Value("${gateway.timeoutinseconds}") int timeout) {
+    return new OrderEventConsumer(timeout);
   }
 
   @Bean
