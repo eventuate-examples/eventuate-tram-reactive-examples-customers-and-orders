@@ -9,8 +9,6 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 
-import static java.util.Collections.singletonList;
-
 @Table("customer")
 public class Customer {
 
@@ -37,7 +35,7 @@ public class Customer {
   public static ResultWithEvents<Customer> create(String name, Money creditLimit) {
     Customer customer = new Customer(name, creditLimit.getAmount());
     return new ResultWithEvents<>(customer,
-            singletonList(new CustomerCreatedEvent(customer.getName(), new Money(customer.getCreditLimit()))));
+            new CustomerCreatedEvent(customer.getName(), new Money(customer.getCreditLimit())));
   }
 
   public Long getId() {

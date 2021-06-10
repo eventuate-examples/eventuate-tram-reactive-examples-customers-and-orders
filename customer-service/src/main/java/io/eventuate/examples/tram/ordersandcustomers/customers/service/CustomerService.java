@@ -21,8 +21,9 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.List;
+
+import static io.eventuate.tram.spring.events.publisher.DomainEventPublishingBuilder.createEvents;
 
 public class CustomerService {
 
@@ -54,12 +55,11 @@ public class CustomerService {
             .flatMap(customer ->
                     domainEventPublisher
                             .publish(Customer.class, customer.getId(), customerWithEvents.events)
-                            .collectList()
                             .map(notUsed -> customer))
             .as(transactionalOperator::transactional);
   }
 
-  public Mono<Void> reserveCredit(String orderId, long customerId, Money orderTotal) {
+  public Mono<List<Message>> reserveCredit(String orderId, long customerId, Money orderTotal) {
 
     Mono<Customer> possibleCustomer = customerRepository.findById(customerId);
 
@@ -70,8 +70,7 @@ public class CustomerService {
                     .flatMap(creditReservations -> handleCreditReservation(creditReservations, customer, orderId, customerId, orderTotal)))
             .switchIfEmpty(handleNotExistingCustomer(orderId, customerId))
             .as(transactionalOperator::transactional)
-            .doOnError(throwable -> logger.error("credit reservation failed", throwable))
-            .flatMap(notUsed -> Mono.empty());
+            .doOnError(throwable -> logger.error("credit reservation failed", throwable));
   }
 
   public Mono<Void> releaseCredit(String orderId, long customerId) {
@@ -110,23 +109,24 @@ public class CustomerService {
   }
 
   private Mono<List<Message>> publishCreditReservationEvents(Long customerId, DomainEvent customerEvent, String orderId, DomainEvent orderSagaEvent) {
-    return domainEventPublisher.publish(Customer.class,
-            customerId,
-            Collections.singletonList(customerEvent))
-            .collectList()
-            .flatMap(notUsed ->
-              domainEventPublisher.publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
-                      orderId,
-                      Collections.singletonList(orderSagaEvent))
-                      .collectList());
+
+    return domainEventPublisher.publish(
+            createEvents()
+                    .aggregateType(Customer.class).aggregateId(customerId).event(customerEvent).next()
+                    .aggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order").aggregateId(orderId).event(orderSagaEvent)
+                    .build()
+    );
+
   }
 
   private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId) {
     return Mono.defer(() ->
-      domainEventPublisher
-              .publish(Customer.class,
-                      customerId,
-                      Collections.singletonList(new CustomerValidationFailedEvent(orderId)))
-              .collectList());
+      domainEventPublisher.publish(
+              createEvents()
+                      .aggregateType(Customer.class)
+                      .aggregateId(customerId)
+                      .event(new CustomerValidationFailedEvent(orderId))
+                      .build())
+    );
   }
 }

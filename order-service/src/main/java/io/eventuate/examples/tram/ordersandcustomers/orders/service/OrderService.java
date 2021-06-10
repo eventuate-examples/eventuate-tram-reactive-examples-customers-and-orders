@@ -19,8 +19,6 @@ import reactor.core.publisher.Mono;
 import java.util.Collections;
 import java.util.List;
 
-import static java.util.Collections.singletonList;
-
 public class OrderService {
 
   private final ReactiveDomainEventPublisher domainEventPublisher;
@@ -48,7 +46,7 @@ public class OrderService {
             .as(transactionalOperator::transactional);
   }
 
-  public Mono<Void> approveOrder(String orderId) {
+  public Mono<List<Message>> approveOrder(String orderId) {
     return orderRepository
             .findById(orderId)
             .map(order -> {
@@ -58,11 +56,10 @@ public class OrderService {
             .flatMap(orderRepository::save)
             .flatMap(order -> publishOrderEvents(order.getId(),
                     new OrderApprovedEvent(order.getOrderDetails()),
-                    new CreateOrderSagaCompletedEvent("Order Service", order.getOrderDetails())))
-            .flatMap(notUsed -> Mono.empty());
+                    new CreateOrderSagaCompletedEvent("Order Service", order.getOrderDetails())));
   }
 
-  public Mono<Void> rejectOrder(String orderId) {
+  public Mono<List<Message>> rejectOrder(String orderId) {
     return orderRepository
             .findById(orderId)
             .map(order -> {
@@ -72,8 +69,7 @@ public class OrderService {
             .flatMap(orderRepository::save)
             .flatMap(order -> publishOrderEvents(order.getId(),
                     new OrderRejectedEvent(order.getOrderDetails()),
-                    new CreateOrderSagaStepFailedEvent("Order Service", order.getOrderDetails())))
-            .flatMap(notUsed -> Mono.empty());
+                    new CreateOrderSagaStepFailedEvent("Order Service", order.getOrderDetails())));
   }
 
   public Mono<Order> cancelOrder(String orderId) {
@@ -84,8 +80,7 @@ public class OrderService {
               return order;
             })
             .flatMap(orderRepository::save)
-            .flatMap(order -> domainEventPublisher.publish(Order.class, orderId, singletonList(new OrderCancelledEvent(order.getOrderDetails())))
-                    .collectList()
+            .flatMap(order -> domainEventPublisher.publish(Order.class, orderId, new OrderCancelledEvent(order.getOrderDetails()))
                     .map(notUsed -> order))
             .as(transactionalOperator::transactional);
   }
@@ -97,8 +92,6 @@ public class OrderService {
   private Mono<List<Message>> publishOrderEvents(String orderId, List<DomainEvent> orderEvents, List<DomainEvent> orderSagaEvents) {
     return domainEventPublisher
             .publish(Order.class, orderId, orderEvents)
-            .collectList()
-            .flatMap(notUsed ->
-                    domainEventPublisher.publish(Order.class, orderId, orderSagaEvents).collectList());
+            .flatMap(notUsed -> domainEventPublisher.publish(Order.class, orderId, orderSagaEvents));
   }
 }

@@ -13,8 +13,6 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-
 public class OrderHandlers {
   private ReactiveDomainEventPublisher domainEventPublisher;
   private TransactionalOperator transactionalOperator;
@@ -42,8 +40,7 @@ public class OrderHandlers {
 
               return domainEventPublisher
                       .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
-                              orderAndSagaId, Collections.singletonList(createOrderSagaStartedEvent))
-                      .collectList()
+                              orderAndSagaId, createOrderSagaStartedEvent)
                       .as(transactionalOperator::transactional)
                       .flatMap(messages -> response)
                       .flatMap(orderState -> createServerResponse(orderAndSagaId, orderState));
@@ -66,7 +63,7 @@ public class OrderHandlers {
         break;
       }
       case TIMEOUT: {
-        status = HttpStatus.GATEWAY_TIMEOUT;
+        status = HttpStatus.ACCEPTED;
         break;
       }
       default: {

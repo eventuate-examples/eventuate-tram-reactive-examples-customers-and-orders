@@ -3,11 +3,14 @@ package io.eventuate.examples.tram.ordersandcustomers.customers.service;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStartedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderCancelledEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
+import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public class OrderEventConsumer {
   private Logger logger = LoggerFactory.getLogger(getClass());
@@ -26,7 +29,7 @@ public class OrderEventConsumer {
             .build();
   }
 
-  public Mono<Void> handleCreateOrderSagaStartedEvent(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
+  public Mono<List<Message>> handleCreateOrderSagaStartedEvent(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
     CreateOrderSagaStartedEvent event = domainEventEnvelope.getEvent();
     return customerService.reserveCredit(domainEventEnvelope.getAggregateId(),
             event.getOrderDetails().getCustomerId(), event.getOrderDetails().getOrderTotal());

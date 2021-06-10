@@ -53,7 +53,7 @@ public class CustomersAndOrdersEndToEndTest {
     try {
       executeScript("stop-order-service.sh");
       Long customerId = createCustomer("Fred", new Money("15.00"));
-      createOrder(customerId, new Money("12.34"), HttpStatus.GATEWAY_TIMEOUT);
+      createOrder(customerId, new Money("12.34"), HttpStatus.ACCEPTED);
     } finally {
       executeScript("start-order-service.sh");
     }

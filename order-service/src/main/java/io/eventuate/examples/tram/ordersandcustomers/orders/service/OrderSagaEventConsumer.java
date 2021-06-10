@@ -5,10 +5,13 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.Create
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepSucceededEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
+import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 
 public class OrderSagaEventConsumer {
@@ -25,13 +28,12 @@ public class OrderSagaEventConsumer {
             .build();
   }
 
-  private Mono<Void> handlerOrderCreatedSagaStarted(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
-    return orderService
-            .createOrder(domainEventEnvelope.getAggregateId(), domainEventEnvelope.getEvent().getOrderDetails())
-            .flatMap(notUsed -> Mono.empty());
+  private Mono<Order> handlerOrderCreatedSagaStarted(DomainEventEnvelope<CreateOrderSagaStartedEvent> domainEventEnvelope) {
+    return orderService.createOrder(domainEventEnvelope.getAggregateId(),
+            domainEventEnvelope.getEvent().getOrderDetails());
   }
 
-  private Mono<Void> handleCreateOrderSagaStepSucceededEvent(DomainEventEnvelope<CreateOrderSagaStepSucceededEvent> domainEventEnvelope) {
+  private Mono<?> handleCreateOrderSagaStepSucceededEvent(DomainEventEnvelope<CreateOrderSagaStepSucceededEvent> domainEventEnvelope) {
     if (domainEventEnvelope.getEvent().getService().equals("Customer Service")) {
       return orderService.approveOrder(domainEventEnvelope.getAggregateId());
     }
@@ -39,7 +41,7 @@ public class OrderSagaEventConsumer {
     return Mono.empty();
   }
 
-  private Mono<Void> handleCreateOrderSagaStepFailedEvent(DomainEventEnvelope<CreateOrderSagaStepFailedEvent> domainEventEnvelope) {
+  private Mono<?> handleCreateOrderSagaStepFailedEvent(DomainEventEnvelope<CreateOrderSagaStepFailedEvent> domainEventEnvelope) {
     if (domainEventEnvelope.getEvent().getService().equals("Customer Service")) {
       return orderService.rejectOrder(domainEventEnvelope.getAggregateId());
     }
