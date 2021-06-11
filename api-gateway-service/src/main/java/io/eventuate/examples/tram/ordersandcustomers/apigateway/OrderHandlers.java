@@ -42,7 +42,7 @@ public class OrderHandlers {
                       .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
                               orderAndSagaId, createOrderSagaStartedEvent)
                       .as(transactionalOperator::transactional)
-                      .flatMap(messages -> response)
+                      .then(response)
                       .flatMap(orderState -> createServerResponse(orderAndSagaId, orderState));
             });
   }

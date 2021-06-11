@@ -23,8 +23,6 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static io.eventuate.tram.spring.events.publisher.DomainEventPublishingBuilder.createEvents;
-
 public class CustomerService {
 
   private Logger logger = LoggerFactory.getLogger(getClass());
@@ -55,7 +53,7 @@ public class CustomerService {
             .flatMap(customer ->
                     domainEventPublisher
                             .publish(Customer.class, customer.getId(), customerWithEvents.events)
-                            .map(notUsed -> customer))
+                            .thenReturn(customer))
             .as(transactionalOperator::transactional);
   }
 
@@ -94,7 +92,7 @@ public class CustomerService {
 
       return creditReservationRepository
               .save(new CreditReservation(customerId, orderId, orderTotal.getAmount()))
-              .flatMap(notUsed -> publishCreditReservationEvents(customerId, customerCreditReservedEvent, orderId, createOrderSagaStepSucceededEvent));
+              .then(publishCreditReservationEvents(customerId, customerCreditReservedEvent, orderId, createOrderSagaStepSucceededEvent));
     } else {
       logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
 
@@ -109,24 +107,18 @@ public class CustomerService {
   }
 
   private Mono<List<Message>> publishCreditReservationEvents(Long customerId, DomainEvent customerEvent, String orderId, DomainEvent orderSagaEvent) {
-
-    return domainEventPublisher.publish(
-            createEvents()
-                    .aggregateType(Customer.class).aggregateId(customerId).event(customerEvent).next()
+    return domainEventPublisher
+                    .aggregateType(Customer.class).aggregateId(customerId).event(customerEvent)
                     .aggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order").aggregateId(orderId).event(orderSagaEvent)
-                    .build()
-    );
-
+                    .publish();
   }
 
   private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId) {
     return Mono.defer(() ->
-      domainEventPublisher.publish(
-              createEvents()
+      domainEventPublisher
                       .aggregateType(Customer.class)
                       .aggregateId(customerId)
                       .event(new CustomerValidationFailedEvent(orderId))
-                      .build())
-    );
+                      .publish());
   }
 }
