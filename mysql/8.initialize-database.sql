@@ -11,7 +11,13 @@ CREATE TABLE customer (
 CREATE TABLE credit_reservation (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   customer_id BIGINT,
-  order_id BIGINT,
-  reservation DECIMAL,
-  FOREIGN KEY (customer_id) REFERENCES customer (id)
+  order_id VARCHAR(128),
+  reservation DECIMAL
+);
+
+CREATE TABLE ordert (
+  id VARCHAR(128) PRIMARY KEY,
+  state VARCHAR(16),
+  customer_id BIGINT,
+  order_total DECIMAL
 );

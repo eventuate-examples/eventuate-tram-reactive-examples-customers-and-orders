@@ -13,14 +13,14 @@ public class CreditReservation {
 
   private Long customerId;
 
-  private Long orderId;
+  private String orderId;
 
   private BigDecimal reservation;
 
   public CreditReservation() {
   }
 
-  public CreditReservation(Long customerId, Long orderId, BigDecimal reservation) {
+  public CreditReservation(Long customerId, String orderId, BigDecimal reservation) {
     this.customerId = customerId;
     this.orderId = orderId;
     this.reservation = reservation;

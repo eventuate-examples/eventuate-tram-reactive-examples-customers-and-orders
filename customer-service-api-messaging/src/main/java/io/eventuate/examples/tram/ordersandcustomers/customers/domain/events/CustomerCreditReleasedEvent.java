@@ -5,7 +5,7 @@ public class CustomerCreditReleasedEvent extends AbstractCustomerOrderEvent {
   public CustomerCreditReleasedEvent() {
   }
 
-  public CustomerCreditReleasedEvent(Long orderId) {
+  public CustomerCreditReleasedEvent(String orderId) {
     super(orderId);
   }
 }

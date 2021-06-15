@@ -4,22 +4,22 @@ package io.eventuate.examples.tram.ordersandcustomers.orders.webapi;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderState;
 
 public class GetOrderResponse {
-  private Long orderId;
+  private String orderId;
   private OrderState orderState;
 
   public GetOrderResponse() {
   }
 
-  public GetOrderResponse(Long orderId, OrderState orderState) {
+  public GetOrderResponse(String orderId, OrderState orderState) {
     this.orderId = orderId;
     this.orderState = orderState;
   }
 
-  public Long getOrderId() {
+  public String getOrderId() {
     return orderId;
   }
 
-  public void setOrderId(Long orderId) {
+  public void setOrderId(String orderId) {
     this.orderId = orderId;
   }
 

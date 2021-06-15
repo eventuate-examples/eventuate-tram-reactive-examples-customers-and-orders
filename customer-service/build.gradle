@@ -13,6 +13,11 @@ dependencies {
 
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-publisher"
 
+
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-subscriber"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-jdbc"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-kafka"
+
     compile 'mysql:mysql-connector-java:5.1.36'
 
     compile "org.springframework.boot:spring-boot-starter"

@@ -1,0 +1,24 @@
+apply plugin: ServicePlugin
+
+dependencies {
+    compile project(":common-swagger")
+    compile project(":order-service-api-web")
+
+    compile project(":order-service-api-messaging")
+    compile project(":customer-service-api-messaging")
+
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-publisher"
+
+
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-subscriber"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-jdbc"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-kafka"
+
+    compile 'mysql:mysql-connector-java:5.1.36'
+
+    compile "org.springframework.boot:spring-boot-starter"
+    compile "org.springframework.boot:spring-boot-starter-actuator"
+    compile "org.springframework.boot:spring-boot-starter-webflux:$springBootVersion"
+}
+
+

@@ -1,20 +1,20 @@
 package io.eventuate.examples.tram.ordersandcustomers.customers.domain.events;
 
 public abstract class AbstractCustomerOrderEvent implements CustomerEvent {
-  protected Long orderId;
+  protected String orderId;
 
-  protected AbstractCustomerOrderEvent(Long orderId) {
+  protected AbstractCustomerOrderEvent(String orderId) {
     this.orderId = orderId;
   }
 
   protected AbstractCustomerOrderEvent() {
   }
 
-  public Long getOrderId() {
+  public String getOrderId() {
     return orderId;
   }
 
-  public void setOrderId(Long orderId) {
+  public void setOrderId(String orderId) {
     this.orderId = orderId;
   }
 }

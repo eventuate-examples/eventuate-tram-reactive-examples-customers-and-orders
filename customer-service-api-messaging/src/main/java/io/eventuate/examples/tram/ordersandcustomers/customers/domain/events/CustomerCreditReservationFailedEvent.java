@@ -5,7 +5,7 @@ public class CustomerCreditReservationFailedEvent extends AbstractCustomerOrderE
   public CustomerCreditReservationFailedEvent() {
   }
 
-  public CustomerCreditReservationFailedEvent(Long orderId) {
+  public CustomerCreditReservationFailedEvent(String orderId) {
     super(orderId);
   }
 

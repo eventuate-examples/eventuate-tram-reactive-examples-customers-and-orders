@@ -1,0 +1,17 @@
+apply plugin: ServicePlugin
+
+dependencies {
+    compile project(":order-service-api-messaging")
+    compile project(":order-service-api-web")
+
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-publisher"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-subscriber"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-jdbc"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-kafka"
+
+    compile 'org.springframework.cloud:spring-cloud-starter-gateway'
+
+    compile "org.springframework.boot:spring-boot-starter"
+    compile "org.springframework.boot:spring-boot-starter-actuator"
+    compile "org.springframework.boot:spring-boot-starter-webflux:$springBootVersion"
+}

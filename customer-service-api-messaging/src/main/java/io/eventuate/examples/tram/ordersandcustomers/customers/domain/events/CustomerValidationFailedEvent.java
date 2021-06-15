@@ -2,7 +2,7 @@ package io.eventuate.examples.tram.ordersandcustomers.customers.domain.events;
 
 public class CustomerValidationFailedEvent extends AbstractCustomerOrderEvent {
 
-  public CustomerValidationFailedEvent(Long orderId) {
+  public CustomerValidationFailedEvent(String orderId) {
     super(orderId);
   }
 
