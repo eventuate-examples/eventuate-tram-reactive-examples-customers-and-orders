@@ -1,0 +1,44 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    working_directory: ~/eventuate-tram-reactive-examples-customers-and-orders
+    steps:
+      - checkout
+      - run:
+          command: .circleci/install-jdk-14.sh
+      - restore_cache:
+          keys:
+            - eventuate-tram-reactive-examples-customers-and-orders-{{ checksum "gradle.properties" }}
+            - eventuate-tram-reactive-examples-customers-and-orders-
+      - run:
+          command: |
+            ./.circleci/upgrade-docker-compose.sh
+            . ./.circleci/setenv-circle-ci.sh
+            ./gradlew testClasses
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: eventuate-tram-reactive-examples-customers-and-orders-{{ checksum "gradle.properties" }}
+      - run:
+          command: |
+            . ./.circleci/setenv-circle-ci.sh
+            ./build-and-test-all-mysql-binlog.sh
+      - run:
+          name: Save JUNIT test results
+          command: |
+            mkdir -p ~/junit/
+            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/junit/ \;
+          when: always
+      - run:
+          name: Print container logs
+          command: |
+            export TERM=dumb
+            ./.circleci/print-container-logs.sh
+          when: always
+      - store_test_results:
+          path: ~/junit
+      - store_artifacts:
+          path: ~/junit
+      - store_artifacts:
+          path: ~/container-logs
