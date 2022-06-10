@@ -18,7 +18,7 @@ dependencies {
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-jdbc"
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-kafka"
 
-    compile 'mysql:mysql-connector-java:5.1.36'
+    compile 'mysql:mysql-connector-java:8.0.21'
 
     compile "org.springframework.boot:spring-boot-starter"
     compile "org.springframework.boot:spring-boot-starter-actuator"
