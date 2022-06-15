@@ -119,9 +119,7 @@ services:
       - USE_DB_ID=true
 
   mongodb:
-    image: mongo:3.6
-    hostname: mongodb
-    command: mongod --smallfiles
+    image: mongo:5.0.6
     ports:
       - "27017:27017"
 
@@ -150,8 +148,9 @@ services:
       JAVA_OPTS: -Xmx64m
 
   zipkin:
-    image: openzipkin/zipkin:2.21
+    image: openzipkin/zipkin:2.23
     ports:
       - "9411:9411"
     environment:
       JAVA_OPTS: -Xmx64m
+

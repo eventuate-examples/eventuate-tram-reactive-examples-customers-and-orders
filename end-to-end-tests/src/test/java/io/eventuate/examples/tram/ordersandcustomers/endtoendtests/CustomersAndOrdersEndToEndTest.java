@@ -9,7 +9,6 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderRe
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.GetOrderResponse;
 import io.eventuate.util.test.async.Eventually;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.oneOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = CustomersAndOrdersEndToEndTestConfiguration.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -94,7 +96,7 @@ public class CustomersAndOrdersEndToEndTest {
     processBuilder.directory(new File(".."));
     processBuilder.command("sh", script);
     processBuilder.inheritIO();
-    processBuilder.start().waitFor();
+    assertEquals(0, processBuilder.start().waitFor());
   }
 
   private Long createCustomer(String name, Money credit) {
@@ -107,11 +109,11 @@ public class CustomersAndOrdersEndToEndTest {
       ResponseEntity<CreateOrderResponse> createOrderResponse = restTemplate.postForEntity(baseUrl("orders"),
               new CreateOrderRequest(customerId, orderTotal), CreateOrderResponse.class);
 
-      Assert.assertEquals(expectedStatus, createOrderResponse.getStatusCode());
+      assertThat(createOrderResponse.getStatusCode(), is(oneOf(expectedStatus, HttpStatus.ACCEPTED)));
 
       return createOrderResponse.getBody().getOrderId();
     } catch (HttpStatusCodeException e) {
-      Assert.assertEquals(expectedStatus, e.getStatusCode());
+      assertThat(e.getStatusCode(), is(oneOf(expectedStatus, HttpStatus.ACCEPTED)));
       return JSonMapper.fromJson(e.getResponseBodyAsString(), CreateOrderResponse.class).getOrderId();
     }
   }

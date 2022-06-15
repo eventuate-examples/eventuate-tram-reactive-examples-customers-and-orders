@@ -23,6 +23,8 @@ import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
+import java.time.Duration;
+
 import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
 
 @Configuration
@@ -59,8 +61,8 @@ public class GatewayConfiguration {
   }
 
   @Bean
-  public OrderEventConsumer orderEventConsumer(@Value("${gateway.timeoutinseconds}") int timeout) {
-    return new OrderEventConsumer(timeout);
+  public OrderEventConsumer orderEventConsumer(@Value("${gateway.timeoutinmilliseconds}") int timeout) {
+    return new OrderEventConsumer(Duration.ofMillis(timeout));
   }
 
   @Bean

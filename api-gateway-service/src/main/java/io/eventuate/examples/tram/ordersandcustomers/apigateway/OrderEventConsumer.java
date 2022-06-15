@@ -20,10 +20,10 @@ public class OrderEventConsumer {
 
   private ConcurrentHashMap<String, CompletableFuture<OrderState>> sagaIdToCompletableFuture = new ConcurrentHashMap<>();
 
-  private int timeoutInSeconds;
+  private Duration timeout;
 
-  public OrderEventConsumer(int timeoutInSeconds) {
-    this.timeoutInSeconds = timeoutInSeconds;
+  public OrderEventConsumer(Duration timeout) {
+    this.timeout = timeout;
   }
 
   public ReactiveDomainEventHandlers domainEventHandlers() {
@@ -49,8 +49,8 @@ public class OrderEventConsumer {
 
     return Mono
             .fromFuture(future)
-            .timeout(Duration.ofSeconds(timeoutInSeconds))
-            .onErrorReturn(throwable -> throwable instanceof TimeoutException, OrderState.TIMEOUT);
+            .timeout(timeout)
+            .onErrorReturn(TimeoutException.class::isInstance, OrderState.TIMEOUT);
   }
 
   private void completeOrderCreation(String orderId) {

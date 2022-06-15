@@ -20,16 +20,21 @@ subprojects {
     targetCompatibility = 1.8
 
     repositories {
-        mavenLocal()
         mavenCentral()
-        jcenter()
         eventuateMavenRepoUrl.split(',').each { repoUrl -> maven { url repoUrl } }
     }
 
     dependencies {
         implementation(platform("io.eventuate.platform:eventuate-platform-dependencies:$eventuatePlatformVersion"))
-        testCompile "junit:junit:4.12"
+
+        implementation(platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"))
+        implementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+        testImplementation "junit:junit:4.13.2"
     }
+
+//    constraints {
+//        implementation "org.springdoc:springdoc-openapi-ui:$springDocOpenApiUiVersion"
+//    }
 
 }
 
@@ -44,13 +49,13 @@ dockerCompose {
     removeOrphans = true
 
     mysqlbinlog {
-        projectName = null
+        projectName = System.getenv("EVENTUATE_PROJECT_NAME")
         useComposeFiles = ["docker-compose-mysql-binlog.yml"]
         removeContainers = project.ext.removeContainers
     }
 
     mysqlbinloginfrastructure {
-        projectName = null
+        projectName = System.getenv("EVENTUATE_PROJECT_NAME")
         useComposeFiles = ["docker-compose-mysql-binlog.yml"]
         startedServices = ["cdc-service", "zipkin"]
         removeContainers = project.ext.removeContainers
