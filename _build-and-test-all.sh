@@ -27,9 +27,6 @@ fi
 
 ${dockerall}Up
 
-#Testing mongo cli
-echo 'show dbs' |  ./mongodb-cli.sh -i
-
 ./gradlew :end-to-end-tests:cleanTest :end-to-end-tests:test
 
 ${dockerall}Down -P removeContainers=true
