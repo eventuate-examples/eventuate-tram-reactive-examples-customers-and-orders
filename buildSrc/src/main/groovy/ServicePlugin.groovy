@@ -13,6 +13,7 @@ class ServicePlugin implements Plugin<Project> {
             compile "org.springframework.cloud:spring-cloud-sleuth-zipkin"
             compile "io.eventuate.tram.springcloudsleuth:eventuate-tram-spring-cloud-sleuth-tram-starter"
             compile "org.springdoc:springdoc-openapi-ui:1.6.6"
+            compile "io.projectreactor:reactor-tools"
         }
 
     }

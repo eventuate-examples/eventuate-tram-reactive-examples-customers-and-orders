@@ -14,4 +14,10 @@ dependencies {
     compile "org.springframework.boot:spring-boot-starter"
     compile "org.springframework.boot:spring-boot-starter-actuator"
     compile "org.springframework.boot:spring-boot-starter-webflux"
+
+    testCompile "org.springframework.boot:spring-boot-test"
+    testCompile "org.springframework:spring-test"
+
+    implementation group: 'io.netty', name: 'netty-resolver-dns-native-macos', version: '4.1.75.Final', classifier: 'osx-aarch_64'
+
 }

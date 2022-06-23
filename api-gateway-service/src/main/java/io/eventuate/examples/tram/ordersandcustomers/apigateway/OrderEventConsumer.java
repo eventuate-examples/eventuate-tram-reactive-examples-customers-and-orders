@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
+import static reactor.core.publisher.Mono.just;
+
 public class OrderEventConsumer {
   private Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -50,7 +52,10 @@ public class OrderEventConsumer {
     return Mono
             .fromFuture(future)
             .timeout(timeout)
-            .onErrorReturn(TimeoutException.class::isInstance, OrderState.TIMEOUT);
+            .onErrorResume(TimeoutException.class::isInstance, e -> {
+              logger.info("createOrderSaga timeout");
+              return just(OrderState.TIMEOUT);
+            });
   }
 
   private void completeOrderCreation(String orderId) {

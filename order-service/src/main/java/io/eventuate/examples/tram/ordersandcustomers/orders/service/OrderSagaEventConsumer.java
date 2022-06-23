@@ -5,13 +5,10 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.Create
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.CreateOrderSagaStepSucceededEvent;
 import io.eventuate.tram.events.subscriber.DomainEventEnvelope;
-import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlers;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventHandlersBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 
 public class OrderSagaEventConsumer {
@@ -36,9 +33,8 @@ public class OrderSagaEventConsumer {
   private Mono<?> handleCreateOrderSagaStepSucceededEvent(DomainEventEnvelope<CreateOrderSagaStepSucceededEvent> domainEventEnvelope) {
     if (domainEventEnvelope.getEvent().getService().equals("Customer Service")) {
       return orderService.approveOrder(domainEventEnvelope.getAggregateId());
-    }
-
-    return Mono.empty();
+    } else
+      return Mono.empty();
   }
 
   private Mono<?> handleCreateOrderSagaStepFailedEvent(DomainEventEnvelope<CreateOrderSagaStepFailedEvent> domainEventEnvelope) {

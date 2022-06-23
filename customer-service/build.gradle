@@ -5,6 +5,7 @@ plugins {
 apply plugin: ServicePlugin
 
 dependencies {
+
     compile project(":customer-service-api-web")
 
     compile project(":customer-service-api-messaging")

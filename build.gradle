@@ -29,6 +29,7 @@ subprojects {
 
         implementation(platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"))
         implementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+
         testImplementation "junit:junit:4.13.2"
     }
 

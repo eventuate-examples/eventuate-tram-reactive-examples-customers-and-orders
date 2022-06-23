@@ -1,5 +1,9 @@
-#! /bin/bash
+#! /bin/bash -e
 
-set -e
+PROJECT_NAME="${PWD##*/}"
 
-./gradlew mysqlbinlogComposeUp
+if [ -n "$EVENTUATE_PROJECT_NAME" ] ; then
+    PROJECT_NAME="${EVENTUATE_PROJECT_NAME}"
+fi
+
+docker start ${PROJECT_NAME}_order-service_1

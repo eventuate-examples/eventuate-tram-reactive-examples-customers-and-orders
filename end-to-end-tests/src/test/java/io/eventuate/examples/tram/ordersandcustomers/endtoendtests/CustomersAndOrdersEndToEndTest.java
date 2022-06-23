@@ -11,6 +11,8 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.GetOrderRespo
 import io.eventuate.util.test.async.Eventually;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,6 +35,8 @@ import static org.junit.Assert.assertThat;
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = CustomersAndOrdersEndToEndTestConfiguration.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 public class CustomersAndOrdersEndToEndTest {
+
+  private final Logger logger = LoggerFactory.getLogger(getClass());
 
   @Value("${host.name}")
   private String hostName;
@@ -111,6 +115,8 @@ public class CustomersAndOrdersEndToEndTest {
 
       assertThat(createOrderResponse.getStatusCode(), is(oneOf(expectedStatus, HttpStatus.ACCEPTED)));
 
+      logger.info("Create Order B3", createOrderResponse.getHeaders().get("b3"));
+
       return createOrderResponse.getBody().getOrderId();
     } catch (HttpStatusCodeException e) {
       assertThat(e.getStatusCode(), is(oneOf(expectedStatus, HttpStatus.ACCEPTED)));
@@ -128,11 +134,13 @@ public class CustomersAndOrdersEndToEndTest {
       ResponseEntity<GetOrderResponse> response =
               restTemplate.getForEntity(baseUrl("orders/" + id), GetOrderResponse.class);
 
-      assertEquals(HttpStatus.OK, response.getStatusCode());
+      assertEquals("expected 200 for " + id, HttpStatus.OK, response.getStatusCode());
 
       GetOrderResponse order = response.getBody();
 
-      assertEquals(expectedState, order.getOrderState());
+      if (expectedState != order.getOrderState())
+        assertEquals(String.format("Expected Order %s to have state %s but was %s", id, expectedState, order.getOrderState()),
+                expectedState, order.getOrderState());
     });
   }
 }

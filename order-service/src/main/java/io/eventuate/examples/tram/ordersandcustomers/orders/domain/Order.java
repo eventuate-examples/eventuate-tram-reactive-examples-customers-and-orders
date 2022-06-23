@@ -8,6 +8,7 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderS
 import io.eventuate.tram.events.publisher.ResultWithEvents;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -28,33 +29,45 @@ public class Order implements Persistable<String> {
   @Transient
   private boolean newOrder = false;
 
+  @Version
+  Long version;
+
   public Order() {
   }
 
   public Order(String id, OrderDetails orderDetails) {
-    this.id = id;
+    this(id, OrderState.PENDING);
+    setOrderDetails(orderDetails);
+  }
+
+  private void setOrderDetails(OrderDetails orderDetails) {
     this.customerId = orderDetails.getCustomerId();
     this.orderTotal = orderDetails.getOrderTotal().getAmount();
-    this.state = OrderState.PENDING.name();
+  }
+
+  private Order(String id, OrderState state) {
+    this.id = id;
+    this.state = state.name();
+    this.newOrder = true;
   }
 
   public static ResultWithEvents<Order> createOrder(String id, OrderDetails orderDetails) {
     Order order = new Order(id, orderDetails);
-    order.newOrder = true;
     OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(orderDetails);
     return new ResultWithEvents<>(order, singletonList(orderCreatedEvent));
   }
+
 
   public String getId() {
     return id;
   }
 
   public void noteCreditReserved() {
-    this.state = OrderState.APPROVED.name();
+      this.state = OrderState.APPROVED.name();
   }
 
   public void noteCreditReservationFailed() {
-    this.state = OrderState.REJECTED.name();
+      this.state = OrderState.REJECTED.name();
   }
 
   public OrderState getState() {
@@ -81,4 +94,5 @@ public class Order implements Persistable<String> {
         throw new UnsupportedOperationException("Can't cancel in this state: " + state);
     }
   }
+
 }

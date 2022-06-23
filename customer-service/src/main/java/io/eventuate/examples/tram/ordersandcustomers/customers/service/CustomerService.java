@@ -1,10 +1,10 @@
 package io.eventuate.examples.tram.ordersandcustomers.customers.service;
 
 import io.eventuate.examples.tram.ordersandcustomers.common.domain.Money;
-import io.eventuate.examples.tram.ordersandcustomers.customers.domain.Customer;
-import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CustomerRepository;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservation;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservationRepository;
+import io.eventuate.examples.tram.ordersandcustomers.customers.domain.Customer;
+import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CustomerRepository;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservationFailedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerCreditReservedEvent;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.events.CustomerValidationFailedEvent;
@@ -66,7 +66,7 @@ public class CustomerService {
                     .findAllByCustomerId(customerId)
                     .collectList()
                     .flatMap(creditReservations -> handleCreditReservation(creditReservations, customer, orderId, customerId, orderTotal)))
-            .switchIfEmpty(handleNotExistingCustomer(orderId, customerId))
+            .switchIfEmpty(handleNotExistingCustomer(orderId, customerId, orderTotal))
             .as(transactionalOperator::transactional)
             .doOnError(throwable -> logger.error("credit reservation failed", throwable));
   }
@@ -96,29 +96,32 @@ public class CustomerService {
     } else {
       logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
 
-      CustomerCreditReservationFailedEvent customerCreditReservationFailedEvent =
+      CustomerCreditReservationFailedEvent reservationFailedEvent =
               new CustomerCreditReservationFailedEvent(orderId);
 
-      CreateOrderSagaStepFailedEvent createOrderSagaStepFailedEvent =
+      CreateOrderSagaStepFailedEvent stepFailedEvent =
                         new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
 
-      return publishCreditReservationEvents(customerId, customerCreditReservationFailedEvent, orderId, createOrderSagaStepFailedEvent);
+      return publishCreditReservationEvents(customerId, reservationFailedEvent, orderId, stepFailedEvent);
     }
   }
 
   private Mono<List<Message>> publishCreditReservationEvents(Long customerId, DomainEvent customerEvent, String orderId, DomainEvent orderSagaEvent) {
     return domainEventPublisher
-                    .aggregateType(Customer.class).aggregateId(customerId).event(customerEvent)
-                    .aggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order").aggregateId(orderId).event(orderSagaEvent)
+                    .aggregateType(Customer.class)
+                        .aggregateId(customerId)
+                        .event(customerEvent)
+                    .aggregateType("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order")
+                      .aggregateId(orderId)
+                      .event(orderSagaEvent)
                     .publish();
   }
 
-  private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId) {
-    return Mono.defer(() ->
-      domainEventPublisher
-                      .aggregateType(Customer.class)
-                      .aggregateId(customerId)
-                      .event(new CustomerValidationFailedEvent(orderId))
-                      .publish());
+  private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId, Money orderTotal) {
+    return Mono.defer(() -> {
+      CreateOrderSagaStepFailedEvent stepFailedEvent =
+              new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+      return publishCreditReservationEvents(customerId, new CustomerValidationFailedEvent(orderId), orderId, stepFailedEvent);
+    });
   }
 }

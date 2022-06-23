@@ -1,7 +1,6 @@
 package io.eventuate.examples.tram.ordersandcustomers.orders;
 
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.OrderRepository;
-import io.eventuate.examples.tram.ordersandcustomers.orders.service.CustomerEventConsumer;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderSagaEventConsumer;
 import io.eventuate.examples.tram.ordersandcustomers.orders.service.OrderService;
 import io.eventuate.tram.reactive.events.subscriber.ReactiveDomainEventDispatcher;
@@ -39,19 +38,8 @@ public class OrderConfiguration {
 
 
   @Bean
-  public CustomerEventConsumer customerEventConsumer() {
-    return new CustomerEventConsumer();
-  }
-
-  @Bean
   public OrderSagaEventConsumer orderSagaEventConsumer() {
     return new OrderSagaEventConsumer();
-  }
-
-  @Bean
-  public ReactiveDomainEventDispatcher customerDomainEventDispatcher(CustomerEventConsumer customerEventConsumer,
-                                                                     ReactiveDomainEventDispatcherFactory domainEventDispatcherFactory) {
-    return domainEventDispatcherFactory.make("customerServiceEvents", customerEventConsumer.domainEventHandlers());
   }
 
   @Bean

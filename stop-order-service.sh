@@ -1,10 +1,9 @@
-#! /bin/bash
+#! /bin/bash -e
 
-set -e
+PROJECT_NAME="${PWD##*/}"
 
 if [ -n "$EVENTUATE_PROJECT_NAME" ] ; then
-    ARGS="-p $EVENTUATE_PROJECT_NAME"
+    PROJECT_NAME="${EVENTUATE_PROJECT_NAME}"
 fi
 
-docker-compose $ARGS -f docker-compose-mysql-binlog.yml stop order-service
-docker-compose $ARGS -f docker-compose-mysql-binlog.yml rm -f order-service
+docker stop ${PROJECT_NAME}_order-service_1

@@ -1,6 +1,7 @@
 apply plugin: ServicePlugin
 
 dependencies {
+
     compile project(":order-service-api-web")
 
     compile project(":order-service-api-messaging")

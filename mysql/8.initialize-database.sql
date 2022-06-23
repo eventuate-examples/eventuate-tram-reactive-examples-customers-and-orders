@@ -17,7 +17,8 @@ CREATE TABLE credit_reservation (
 
 CREATE TABLE ordert (
   id VARCHAR(128) PRIMARY KEY,
-  state VARCHAR(16),
+  version BIGINT,
+  state VARCHAR(50),
   customer_id BIGINT,
   order_total DECIMAL
 );

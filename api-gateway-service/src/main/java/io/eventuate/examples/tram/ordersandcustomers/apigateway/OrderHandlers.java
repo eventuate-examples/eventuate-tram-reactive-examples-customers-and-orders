@@ -5,7 +5,12 @@ import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.Create
 import io.eventuate.examples.tram.ordersandcustomers.orders.domain.events.OrderDetails;
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderRequest;
 import io.eventuate.examples.tram.ordersandcustomers.orders.webapi.CreateOrderResponse;
+import io.eventuate.tram.messaging.common.Message;
 import io.eventuate.tram.spring.events.publisher.ReactiveDomainEventPublisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -14,6 +19,9 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 public class OrderHandlers {
+
+  private final Logger logger = LoggerFactory.getLogger(getClass());
+
   private ReactiveDomainEventPublisher domainEventPublisher;
   private TransactionalOperator transactionalOperator;
   private OrderEventConsumer orderEventConsumer;
@@ -38,10 +46,12 @@ public class OrderHandlers {
 
               Mono<OrderState> response = orderEventConsumer.prepareCreateOrderResponse(orderAndSagaId);
 
-              return domainEventPublisher
-                      .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
-                              orderAndSagaId, createOrderSagaStartedEvent)
-                      .as(transactionalOperator::transactional)
+              logger.info("Initiating createOrderSaga {}", orderAndSagaId);
+
+                return domainEventPublisher
+                        .publish("io.eventuate.examples.tram.ordersandcustomers.orders.domain.Order",
+                                orderAndSagaId, createOrderSagaStartedEvent)
+                        .as(transactionalOperator::transactional)
                       .then(response)
                       .flatMap(orderState -> createServerResponse(orderAndSagaId, orderState));
             });
@@ -71,6 +81,38 @@ public class OrderHandlers {
       }
     }
 
+    logger.info("createOrderSaga {} HttpStatus {}", orderId, status);
+
     return ServerResponse.status(status).contentType(MediaType.APPLICATION_JSON).bodyValue(createOrderResponse);
   }
+
+    private class TestMessageSubscriber implements Subscriber<Message> {
+
+        private final String label;
+
+        public TestMessageSubscriber(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public void onSubscribe(Subscription s) {
+            logger.info("{} onSubscribe", label);
+            s.request(1);
+        }
+
+        @Override
+        public void onNext(Message message) {
+            logger.info("{} onNext {}", label, message);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            logger.info("{} onError ", label);
+        }
+
+        @Override
+        public void onComplete() {
+            logger.info("{} onComplete", label);
+        }
+    }
 }
