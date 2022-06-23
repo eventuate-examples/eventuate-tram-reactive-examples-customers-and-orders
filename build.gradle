@@ -33,6 +33,10 @@ subprojects {
         testImplementation "junit:junit:4.13.2"
     }
 
+    configurations.all {
+        resolutionStrategy.cacheChangingModulesFor 30, 'minutes'
+    }
+
 //    constraints {
 //        implementation "org.springdoc:springdoc-openapi-ui:$springDocOpenApiUiVersion"
 //    }
@@ -85,3 +89,4 @@ endToEndTests.dependsOn(":end-to-end-tests:cleanTest")
 task stopServicesMySql(type: GradleBuild) {
     tasks = ["mysqlbinlogComposeDown"]
 }
+
