@@ -1,7 +1,6 @@
 package io.eventuate.examples.tram.ordersandcustomers.customers.service;
 
 import io.eventuate.examples.tram.ordersandcustomers.common.domain.Money;
-import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservation;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CreditReservationRepository;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.Customer;
 import io.eventuate.examples.tram.ordersandcustomers.customers.domain.CustomerRepository;
@@ -20,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public class CustomerService {
@@ -57,53 +55,65 @@ public class CustomerService {
             .as(transactionalOperator::transactional);
   }
 
-  public Mono<List<Message>> reserveCredit(String orderId, long customerId, Money orderTotal) {
+  public Mono<?> reserveCredit(long customerId, String orderId, Money orderTotal) {
 
     Mono<Customer> possibleCustomer = customerRepository.findById(customerId);
 
+    logger.info("Reserving credit for {}", customerId);
+
     return possibleCustomer
-            .flatMap(customer -> creditReservationRepository
-                    .findAllByCustomerId(customerId)
-                    .collectList()
-                    .flatMap(creditReservations -> handleCreditReservation(creditReservations, customer, orderId, customerId, orderTotal)))
+            .flatMap(customer -> reserveCredit(customer, orderId, orderTotal))
             .switchIfEmpty(handleNotExistingCustomer(orderId, customerId, orderTotal))
             .as(transactionalOperator::transactional)
             .doOnError(throwable -> logger.error("credit reservation failed", throwable));
   }
 
-  public Mono<Void> releaseCredit(String orderId, long customerId) {
-      return creditReservationRepository
-              .deleteByOrderId(orderId).as(transactionalOperator::transactional)
-              .doOnError(throwable -> logger.error("credit releasing failed", throwable));
+  private Mono<Object> reserveCredit(Customer customer, String orderId, Money orderTotal) {
+    // Save the customer even though it hasn't changed to ensure serialized updates
+    Long customerId = customer.getId();
+    return creditReservationRepository
+            .findAllByCustomerId(customerId)
+            .collectList()
+            .flatMap(creditReservations -> customer.attemptToReserveCredit(creditReservations, orderId, orderTotal)
+                        .map(creditReservation -> creditReservationRepository
+                                .save(creditReservation)
+                                .then(publishReservationSucceededEvents(orderId, customerId, orderTotal)))
+                        .orElseGet(() -> publishReservationFailedEvents(orderId, customerId, orderTotal)))
+            .flatMap(ignored -> customerRepository.save(customer));
   }
 
-  private Mono<List<Message>> handleCreditReservation(List<CreditReservation> creditReservations, Customer customer, String orderId, long customerId, Money orderTotal) {
-    BigDecimal currentReservations =
-            creditReservations.stream().map(CreditReservation::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
+  public Mono<Object> releaseCredit(long customerId, String orderId) {
+      // Find and save the customer even though it hasn't changed to ensure serialized updates
+      logger.info("releaseCredit credit for {}", customerId);
+      return customerRepository.findById(customerId)
+                      .flatMap(customer ->
+              creditReservationRepository
+              .deleteByOrderId(orderId).as(transactionalOperator::transactional)
+              .flatMap(ignored -> customerRepository.save(customer)));
+  }
 
-    if (currentReservations.add(orderTotal.getAmount()).compareTo(customer.getCreditLimit()) <= 0) {
-      logger.info("reserving credit (orderId: {}, customerId: {})", orderId, customerId);
+  private Mono<List<Message>> publishReservationFailedEvents(String orderId, long customerId, Money orderTotal) {
+    logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
 
-      CustomerCreditReservedEvent customerCreditReservedEvent =
-              new CustomerCreditReservedEvent(orderId);
+    CustomerCreditReservationFailedEvent reservationFailedEvent =
+            new CustomerCreditReservationFailedEvent(orderId);
 
-      CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
-              new CreateOrderSagaStepSucceededEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+    CreateOrderSagaStepFailedEvent stepFailedEvent =
+            new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
 
-      return creditReservationRepository
-              .save(new CreditReservation(customerId, orderId, orderTotal.getAmount()))
-              .then(publishCreditReservationEvents(customerId, customerCreditReservedEvent, orderId, createOrderSagaStepSucceededEvent));
-    } else {
-      logger.info("handling credit reservation failure (orderId: {}, customerId: {})", orderId, customerId);
+    return publishCreditReservationEvents(customerId, reservationFailedEvent, orderId, stepFailedEvent);
+  }
 
-      CustomerCreditReservationFailedEvent reservationFailedEvent =
-              new CustomerCreditReservationFailedEvent(orderId);
+  private Mono<List<Message>> publishReservationSucceededEvents(String orderId, long customerId, Money orderTotal) {
+    logger.info("reserved credit (orderId: {}, customerId: {})", orderId, customerId);
 
-      CreateOrderSagaStepFailedEvent stepFailedEvent =
-                        new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+    CustomerCreditReservedEvent customerCreditReservedEvent =
+            new CustomerCreditReservedEvent(orderId);
 
-      return publishCreditReservationEvents(customerId, reservationFailedEvent, orderId, stepFailedEvent);
-    }
+    CreateOrderSagaStepSucceededEvent createOrderSagaStepSucceededEvent =
+            new CreateOrderSagaStepSucceededEvent("Customer Service", new OrderDetails(customerId, orderTotal));
+
+    return publishCreditReservationEvents(customerId, customerCreditReservedEvent, orderId, createOrderSagaStepSucceededEvent);
   }
 
   private Mono<List<Message>> publishCreditReservationEvents(Long customerId, DomainEvent customerEvent, String orderId, DomainEvent orderSagaEvent) {
@@ -119,6 +129,7 @@ public class CustomerService {
 
   private Mono<List<Message>> handleNotExistingCustomer(String orderId, long customerId, Money orderTotal) {
     return Mono.defer(() -> {
+      logger.info("non existent customer {}", customerId);
       CreateOrderSagaStepFailedEvent stepFailedEvent =
               new CreateOrderSagaStepFailedEvent("Customer Service", new OrderDetails(customerId, orderTotal));
       return publishCreditReservationEvents(customerId, new CustomerValidationFailedEvent(orderId), orderId, stepFailedEvent);

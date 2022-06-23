@@ -8,6 +8,8 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 
 @Table("customer")
 public class Customer {
@@ -48,5 +50,15 @@ public class Customer {
 
   public BigDecimal getCreditLimit() {
     return creditLimit;
+  }
+
+  public Optional<CreditReservation> attemptToReserveCredit(List<CreditReservation> creditReservations, String orderId, Money orderTotal) {
+    BigDecimal currentReservations =
+            creditReservations.stream().map(CreditReservation::getReservation).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    if (currentReservations.add(orderTotal.getAmount()).compareTo(creditLimit) <= 0)
+      return Optional.of(new CreditReservation(id, orderId, orderTotal.getAmount()));
+    else
+      return Optional.empty();
   }
 }

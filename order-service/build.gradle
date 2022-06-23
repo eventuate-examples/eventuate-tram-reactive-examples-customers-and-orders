@@ -13,6 +13,7 @@ dependencies {
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-events-subscriber"
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-jdbc"
     compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-consumer-kafka"
+    compile "io.eventuate.tram.core:eventuate-tram-spring-reactive-optimistic-locking"
 
     compile 'mysql:mysql-connector-java:8.0.21'
 
